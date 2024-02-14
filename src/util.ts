@@ -69,7 +69,9 @@ export const NULL_ETH_ADDRESS = Uint8Array.from(
   Buffer.from("0000000000000000000000000000000000000000", "hex")
 );
 
-export async function generateOpenAIEmbeddingUrl(text: string) {
+export async function generateOpenAIEmbeddingUrl(
+  text: string
+): Promise<string | null> {
   try {
     // Initialize pgvector-node client
     const client = new pg.Client({ database: "replicator" });
