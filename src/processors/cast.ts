@@ -1,9 +1,23 @@
-import { CastAddMessage, CastRemoveMessage, Embed, MessageType } from "@farcaster/hub-nodejs";
+import {
+  CastAddMessage,
+  CastRemoveMessage,
+  Embed,
+  MessageType,
+} from "@farcaster/hub-nodejs";
 import { Selectable, sql } from "kysely";
 import { jsonObjectFrom } from "kysely/helpers/postgres";
 import { buildAddRemoveMessageProcessor } from "../messageProcessor.js";
-import { CastEmbedJson, CastRow, executeTakeFirst, executeTakeFirstOrThrow } from "../db.js";
-import { bytesToHex, farcasterTimeToDate } from "../util.js";
+import {
+  CastEmbedJson,
+  CastRow,
+  executeTakeFirst,
+  executeTakeFirstOrThrow,
+} from "../db.js";
+import {
+  bytesToHex,
+  farcasterTimeToDate,
+  generateOpenAIEmbeddingUrl,
+} from "../util.js";
 import { AssertionError, HubEventProcessingBlockedError } from "../error.js";
 import { PARTITIONS } from "../env.js";
 
@@ -16,11 +30,18 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
   addMessageType: MessageType.CAST_ADD,
   removeMessageType: MessageType.CAST_REMOVE,
   withConflictId(message) {
-    const hash = message.data.type === MessageType.CAST_ADD ? message.hash : message.data.castRemoveBody?.targetHash;
+    const hash =
+      message.data.type === MessageType.CAST_ADD
+        ? message.hash
+        : message.data.castRemoveBody?.targetHash;
 
     return ({ or, and, eb }) => {
       return or([
-        and([eb("type", "=", MessageType.CAST_ADD), eb("fid", "=", message.data.fid), eb("hash", "=", hash)]),
+        and([
+          eb("type", "=", MessageType.CAST_ADD),
+          eb("fid", "=", message.data.fid),
+          eb("hash", "=", hash),
+        ]),
         and([
           eb("type", "=", MessageType.CAST_REMOVE),
           eb("fid", "=", message.data.fid),
@@ -30,10 +51,17 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
     };
   },
   async getDerivedRow(message, trx) {
-    const hash = message.data.type === MessageType.CAST_ADD ? message.hash : message.data.castRemoveBody?.targetHash;
+    const hash =
+      message.data.type === MessageType.CAST_ADD
+        ? message.hash
+        : message.data.castRemoveBody?.targetHash;
 
     return await executeTakeFirst(
-      trx.selectFrom("casts").select(["deletedAt"]).where("fid", "=", message.data.fid).where("hash", "=", hash),
+      trx
+        .selectFrom("casts")
+        .select(["deletedAt"])
+        .where("fid", "=", message.data.fid)
+        .where("hash", "=", hash)
     );
   },
   async deleteDerivedRow(message, trx) {
@@ -43,7 +71,7 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
         .where("fid", "=", message.data.fid)
         .where("hash", "=", message.data.castRemoveBody.targetHash)
         .set({ deletedAt: new Date() })
-        .returningAll(),
+        .returningAll()
     );
   },
   async mergeDerivedRow(message, deleted, trx) {
@@ -52,16 +80,29 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
       data: {
         fid,
         timestamp,
-        castAddBody: { text, embeds, embedsDeprecated, mentions, mentionsPositions, parentCastId, parentUrl },
+        castAddBody: {
+          text,
+          embeds,
+          embedsDeprecated,
+          mentions,
+          mentionsPositions,
+          parentCastId,
+          parentUrl,
+        },
       },
     } = message;
 
     const transformedEmbeds: CastEmbedJson[] = embedsDeprecated?.length
       ? embedsDeprecated.map((url) => ({ url }))
       : embeds.map(({ castId, url }) => {
-          if (castId) return { castId: { fid: castId.fid, hash: bytesToHex(castId.hash) } };
+          if (castId)
+            return {
+              castId: { fid: castId.fid, hash: bytesToHex(castId.hash) },
+            };
           if (url) return { url };
-          throw new AssertionError("Neither castId nor url is defined in embed");
+          throw new AssertionError(
+            "Neither castId nor url is defined in embed"
+          );
         });
 
     let rootParentHash = null;
@@ -69,17 +110,21 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
     if (parentCastId) {
       const { parentFidExists, parentCast } = await executeTakeFirstOrThrow(
         trx.selectNoFrom(({ eb, fn, selectFrom }) => [
-          eb(selectFrom("fids").select(fn.countAll().as("count")).where("fid", "=", parentCastId.fid), ">", 0).as(
-            "parentFidExists",
-          ),
+          eb(
+            selectFrom("fids")
+              .select(fn.countAll().as("count"))
+              .where("fid", "=", parentCastId.fid),
+            ">",
+            0
+          ).as("parentFidExists"),
           jsonObjectFrom(
             eb
               .selectFrom("casts")
               .select(["fid", "rootParentHash", "rootParentUrl"])
-              .where("hash", "=", parentCastId.hash),
+              .where("hash", "=", parentCastId.hash)
           ).as("parentCast"),
         ]),
-        () => new AssertionError("No result"),
+        () => new AssertionError("No result")
       );
 
       if (!parentFidExists) {
@@ -88,14 +133,17 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
           {
             blockedOnFid: parentCastId.fid,
             blockedOnHash: parentCastId.hash,
-          },
+          }
         );
       }
 
       if (!parentCast) {
-        throw new HubEventProcessingBlockedError(`Parent cast ${bytesToHex(parentCastId.hash)} has not yet been seen`, {
-          blockedOnHash: parentCastId.hash,
-        });
+        throw new HubEventProcessingBlockedError(
+          `Parent cast ${bytesToHex(parentCastId.hash)} has not yet been seen`,
+          {
+            blockedOnHash: parentCastId.hash,
+          }
+        );
       }
 
       rootParentHash = parentCast.rootParentHash;
@@ -121,18 +169,35 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
         })
         .onConflict((oc) =>
           oc
-            .$call((qb) => (PARTITIONS ? qb.columns(["hash", "fid"]) : qb.columns(["hash"])))
+            .$call((qb) =>
+              PARTITIONS ? qb.columns(["hash", "fid"]) : qb.columns(["hash"])
+            )
             .doUpdateSet({
               // If this is a delete, only update deletedAt if it's not already set
-              deletedAt: deleted ? (eb) => eb.fn.coalesce("casts.deletedAt", "excluded.deletedAt") : null,
-            }),
+              deletedAt: deleted
+                ? (eb) =>
+                    eb.fn.coalesce("casts.deletedAt", "excluded.deletedAt")
+                : null,
+            })
         )
-        .returningAll(),
+        .returningAll()
     );
   },
   async onAdd({ data: cast, isCreate, skipSideEffects, trx }) {
     // Update any other derived data
+    try {
+      const embedding = await generateOpenAIEmbeddingUrl(cast.text);
 
+      // Update the cast row with the generated embedding
+      const updatedCast = await trx
+        .updateTable("casts")
+        .where("id", "=", cast.id)
+        .set({ embedding })
+        .returningAll();
+      console.log(updatedCast);
+    } catch (e) {
+      console.error(e);
+    }
     if (!skipSideEffects) {
       // Trigger any one-time side effects (push notifications, etc.)
     }

@@ -16,6 +16,7 @@ import {
   ColumnType,
   MigrationInfo,
 } from "kysely";
+import pgvector from "pgvector/kysely";
 import Cursor from "pg-cursor";
 import { Pool, types } from "pg";
 import {
@@ -35,7 +36,10 @@ import { promises as fs } from "fs";
 import { err, ok, Result } from "neverthrow";
 import { Logger } from "./log.js";
 import { extendStackTrace } from "./util.js";
-import { DrainOuterGeneric, SimplifySingleResult } from "kysely/dist/cjs/util/type-utils.js";
+import {
+  DrainOuterGeneric,
+  SimplifySingleResult,
+} from "kysely/dist/cjs/util/type-utils.js";
 
 // BigInts will not exceed Number.MAX_SAFE_INTEGER for our use case.
 // Return as JavaScript's `number` type so it's easier to work with.
@@ -290,6 +294,7 @@ export type CastRow = {
   rootParentUrl: string | null;
   parentUrl: string | null;
   text: string;
+  embedding?: string;
   embeds: ColumnType<CastEmbedJson[], string, string>;
   mentions: ColumnType<Fid[], string, string>;
   mentionsPositions: ColumnType<number[], string, string>;
@@ -425,7 +430,7 @@ const createMigrator = async (db: Kysely<any>, log: Logger) => {
 export const migrationStatus = async (
   // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
   db: Kysely<any>,
-  log: Logger,
+  log: Logger
 ): Promise<{ executed: MigrationInfo[]; pending: MigrationInfo[] }> => {
   const migrator = await createMigrator(db, log);
 
@@ -444,7 +449,10 @@ export const migrationStatus = async (
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-export const migrateToLatest = async (db: Kysely<any>, log: Logger): Promise<Result<void, unknown>> => {
+export const migrateToLatest = async (
+  db: Kysely<any>,
+  log: Logger
+): Promise<Result<void, unknown>> => {
   const migrator = await createMigrator(db, log);
 
   const { error, results } = await migrator.migrateToLatest();
@@ -468,7 +476,10 @@ export const migrateToLatest = async (db: Kysely<any>, log: Logger): Promise<Res
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-export const migrateOneUp = async (db: Kysely<any>, log: Logger): Promise<Result<void, unknown>> => {
+export const migrateOneUp = async (
+  db: Kysely<any>,
+  log: Logger
+): Promise<Result<void, unknown>> => {
   const migrator = await createMigrator(db, log);
 
   const { error, results } = await migrator.migrateUp();
@@ -495,7 +506,7 @@ export async function execute<DB, UT extends keyof DB, TB extends keyof DB, O>(
     | SelectQueryBuilder<DB, TB, O>
     | InsertQueryBuilder<DB, TB, O>
     | UpdateQueryBuilder<DB, UT, TB, O>
-    | DeleteQueryBuilder<DB, TB, O>,
+    | DeleteQueryBuilder<DB, TB, O>
 ): Promise<DrainOuterGeneric<{ [K in keyof O]: O[K] }>[]> {
   try {
     return await query.execute();
@@ -504,12 +515,17 @@ export async function execute<DB, UT extends keyof DB, TB extends keyof DB, O>(
   }
 }
 
-export async function executeTakeFirst<DB, UT extends keyof DB, TB extends keyof DB, O>(
+export async function executeTakeFirst<
+  DB,
+  UT extends keyof DB,
+  TB extends keyof DB,
+  O
+>(
   query:
     | SelectQueryBuilder<DB, TB, O>
     | InsertQueryBuilder<DB, TB, O>
     | UpdateQueryBuilder<DB, UT, TB, O>
-    | DeleteQueryBuilder<DB, TB, O>,
+    | DeleteQueryBuilder<DB, TB, O>
 ): Promise<SimplifySingleResult<O>> {
   try {
     return await query.executeTakeFirst();
@@ -519,13 +535,21 @@ export async function executeTakeFirst<DB, UT extends keyof DB, TB extends keyof
   }
 }
 
-export async function executeTakeFirstOrThrow<DB, UT extends keyof DB, TB extends keyof DB, O>(
+export async function executeTakeFirstOrThrow<
+  DB,
+  UT extends keyof DB,
+  TB extends keyof DB,
+  O
+>(
   query:
     | SelectQueryBuilder<DB, TB, O>
     | InsertQueryBuilder<DB, TB, O>
     | UpdateQueryBuilder<DB, UT, TB, O>
     | DeleteQueryBuilder<DB, TB, O>,
-  errorConstructor?: NoResultErrorConstructor | ((node: QueryNode) => Error) | undefined,
+  errorConstructor?:
+    | NoResultErrorConstructor
+    | ((node: QueryNode) => Error)
+    | undefined
 ): Promise<DrainOuterGeneric<{ [K in keyof O]: O[K] }>> {
   try {
     return await query.executeTakeFirstOrThrow(errorConstructor);
@@ -535,7 +559,10 @@ export async function executeTakeFirstOrThrow<DB, UT extends keyof DB, TB extend
   }
 }
 
-export async function executeTx<T>(db: DB, callback: (trx: DBTransaction) => Promise<T>): Promise<T> {
+export async function executeTx<T>(
+  db: DB,
+  callback: (trx: DBTransaction) => Promise<T>
+): Promise<T> {
   try {
     return await db.transaction().execute(async (trx) => {
       return await callback(trx);
@@ -552,7 +579,7 @@ export async function stream<DB, UT extends keyof DB, TB extends keyof DB, O>(
     | InsertQueryBuilder<DB, TB, O>
     | UpdateQueryBuilder<DB, UT, TB, O>
     | DeleteQueryBuilder<DB, TB, O>,
-  fn: (row: O) => Promise<void> | void,
+  fn: (row: O) => Promise<void> | void
 ) {
   try {
     for await (const row of query.stream()) {
