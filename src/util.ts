@@ -74,7 +74,10 @@ export async function generateOpenAIEmbeddingUrl(
 ): Promise<string | null> {
   try {
     // Initialize pgvector-node client
-    const openai = new OpenAI({ apiKey: process.env.OPEN_AI_KEY });
+    const openai = new OpenAI({
+      apiKey: process.env.OPEN_AI_KEY,
+      maxRetries: 3,
+    });
     const response = await openai.embeddings.create({
       input: text,
       model: "text-embedding-3-small",

@@ -150,23 +150,34 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
       rootParentUrl = parentCast.rootParentUrl;
     }
 
+    const embedding = await generateOpenAIEmbeddingUrl(text);
+
+    // Base object for insertion
+    let valuesObject = {
+      timestamp: farcasterTimeToDate(timestamp),
+      deletedAt: deleted ? new Date() : null,
+      fid,
+      parentFid: parentCastId?.fid || null,
+      hash,
+      rootParentHash: rootParentHash || parentCastId?.hash || null,
+      parentHash: parentCastId?.hash || null,
+      rootParentUrl: rootParentUrl || parentUrl || null,
+      text,
+      embeds: JSON.stringify(transformedEmbeds),
+      mentions: JSON.stringify(mentions),
+      mentionsPositions: JSON.stringify(mentionsPositions),
+    };
+
+    // Conditionally add embedding if it's not null
+    if (embedding !== null) {
+      const existingEmbeds = JSON.parse(valuesObject.embeds);
+      valuesObject.embeds = JSON.stringify([...existingEmbeds, embedding]);
+    }
+
     return await executeTakeFirstOrThrow(
       trx
         .insertInto("casts")
-        .values({
-          timestamp: farcasterTimeToDate(timestamp),
-          deletedAt: deleted ? new Date() : null,
-          fid,
-          parentFid: parentCastId?.fid || null,
-          hash,
-          rootParentHash: rootParentHash || parentCastId?.hash || null,
-          parentHash: parentCastId?.hash || null,
-          rootParentUrl: rootParentUrl || parentUrl || null,
-          text,
-          embeds: JSON.stringify(transformedEmbeds),
-          mentions: JSON.stringify(mentions),
-          mentionsPositions: JSON.stringify(mentionsPositions),
-        })
+        .values(valuesObject)
         .onConflict((oc) =>
           oc
             .$call((qb) =>
@@ -185,18 +196,6 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
   },
   async onAdd({ data: cast, isCreate, skipSideEffects, trx }) {
     // Update any other derived data
-    try {
-      const embedding = await generateOpenAIEmbeddingUrl(cast.text);
-
-      // Update the cast row with the generated embedding
-      const updatedCast = await trx
-        .updateTable("casts")
-        .where("id", "=", cast.id)
-        .set({ embedding })
-        .returningAll();
-    } catch (e) {
-      console.error(e);
-    }
     if (!skipSideEffects) {
       // Trigger any one-time side effects (push notifications, etc.)
     }
