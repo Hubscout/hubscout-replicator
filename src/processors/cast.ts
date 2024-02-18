@@ -194,7 +194,6 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
         .where("id", "=", cast.id)
         .set({ embedding })
         .returningAll();
-      console.log(updatedCast);
     } catch (e) {
       console.error(e);
     }

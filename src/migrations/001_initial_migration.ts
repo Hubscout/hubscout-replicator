@@ -44,17 +44,27 @@ import { PARTITIONS } from "../env.js"; // This was experimental. Don't actually
 **************************************************************************************************/
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-const createPartitions = async (db: Kysely<any>, tableName: string, partitions: number) => {
+const createPartitions = async (
+  db: Kysely<any>,
+  tableName: string,
+  partitions: number
+) => {
   for (let i = 0; i < partitions; i++) {
     await sql
-      .raw(`CREATE TABLE ${tableName}_${String(i).padStart(String(partitions).length, "0")} 
-      PARTITION OF ${tableName} FOR VALUES WITH (MODULUS ${partitions}, REMAINDER ${i})`)
+      .raw(
+        `CREATE TABLE ${tableName}_${String(i).padStart(
+          String(partitions).length,
+          "0"
+        )} 
+      PARTITION OF ${tableName} FOR VALUES WITH (MODULUS ${partitions}, REMAINDER ${i})`
+      )
       .execute(db);
   }
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
 export const up = async (db: Kysely<any>) => {
+  await sql`CREATE EXTENSION IF NOT EXISTS vector;`.execute(db);
   // Used for generating random bytes in ULID creation
   await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`.execute(db);
 
@@ -69,7 +79,9 @@ export const up = async (db: Kysely<any>) => {
   await db.schema
     .createTable("chainEvents")
     .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("blockTimestamp", "timestamptz", (col) => col.notNull())
     .addColumn("fid", "bigint", (col) => col.notNull())
     .addColumn("chainId", "bigint", (col) => col.notNull())
@@ -85,17 +97,27 @@ export const up = async (db: Kysely<any>) => {
       PARTITIONS
         ? qb
             .addPrimaryKeyConstraint("chain_events_pkey", ["id", "fid"])
-            .addUniqueConstraint("chain_events_block_number_log_index_fid_unique", ["blockNumber", "logIndex", "fid"])
+            .addUniqueConstraint(
+              "chain_events_block_number_log_index_fid_unique",
+              ["blockNumber", "logIndex", "fid"]
+            )
             .modifyEnd(sql`PARTITION BY HASH (fid)`)
         : qb
             .addPrimaryKeyConstraint("chain_events_pkey", ["id"])
-            .addUniqueConstraint("chain_events_block_number_log_index_unique", ["blockNumber", "logIndex"]),
+            .addUniqueConstraint("chain_events_block_number_log_index_unique", [
+              "blockNumber",
+              "logIndex",
+            ])
     )
     .execute();
 
   await createPartitions(db, "chain_events", PARTITIONS);
 
-  await db.schema.createIndex("chain_events_fid_index").on("chainEvents").column("fid").execute();
+  await db.schema
+    .createIndex("chain_events_fid_index")
+    .on("chainEvents")
+    .column("fid")
+    .execute();
 
   await db.schema
     .createIndex("chain_events_block_hash_index")
@@ -122,8 +144,12 @@ export const up = async (db: Kysely<any>) => {
     .createTable("fids")
     .addColumn("fid", "bigint", (col) => col.notNull())
     .addPrimaryKeyConstraint("fids_pkey", ["fid"])
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("registeredAt", "timestamptz", (col) => col.notNull())
     .addColumn("chainEventId", "uuid", (col) => col.notNull())
     .addColumn("custodyAddress", "bytea", (col) => col.notNull())
@@ -136,12 +162,16 @@ export const up = async (db: Kysely<any>) => {
               ["chainEventId", "fid"],
               "chainEvents",
               ["id", "fid"],
-              (cb) => cb.onDelete("cascade"),
+              (cb) => cb.onDelete("cascade")
             )
             .modifyEnd(sql`PARTITION BY HASH (fid)`)
-        : qb.addForeignKeyConstraint("fids_chain_event_id_foreign", ["chainEventId"], "chainEvents", ["id"], (cb) =>
-            cb.onDelete("cascade"),
-          ),
+        : qb.addForeignKeyConstraint(
+            "fids_chain_event_id_foreign",
+            ["chainEventId"],
+            "chainEvents",
+            ["id"],
+            (cb) => cb.onDelete("cascade")
+          )
     )
     .execute();
 
@@ -151,8 +181,12 @@ export const up = async (db: Kysely<any>) => {
   await db.schema
     .createTable("signers")
     .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("addedAt", "timestamptz", (col) => col.notNull())
     .addColumn("removedAt", "timestamptz")
     .addColumn("fid", "bigint", (col) => col.notNull())
@@ -164,9 +198,19 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("key", "bytea", (col) => col.notNull())
     .addColumn("metadata", "json", (col) => col.notNull())
     .addUniqueConstraint("signers_fid_key_unique", ["fid", "key"])
-    .addForeignKeyConstraint("signers_fid_foreign", ["fid"], "fids", ["fid"], (cb) => cb.onDelete("cascade"))
-    .addForeignKeyConstraint("signers_requester_fid_foreign", ["requesterFid"], "fids", ["fid"], (cb) =>
-      cb.onDelete("cascade"),
+    .addForeignKeyConstraint(
+      "signers_fid_foreign",
+      ["fid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
+    )
+    .addForeignKeyConstraint(
+      "signers_requester_fid_foreign",
+      ["requesterFid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
     )
     .$call((qb) =>
       PARTITIONS
@@ -177,14 +221,14 @@ export const up = async (db: Kysely<any>) => {
               ["addChainEventId", "fid"],
               "chainEvents",
               ["id", "fid"],
-              (cb) => cb.onDelete("cascade"),
+              (cb) => cb.onDelete("cascade")
             )
             .addForeignKeyConstraint(
               "signers_remove_chain_event_id_foreign",
               ["removeChainEventId", "fid"],
               "chainEvents",
               ["id", "fid"],
-              (cb) => cb.onDelete("cascade"),
+              (cb) => cb.onDelete("cascade")
             )
             .modifyEnd(sql`PARTITION BY HASH (fid)`)
         : qb
@@ -194,30 +238,44 @@ export const up = async (db: Kysely<any>) => {
               ["addChainEventId"],
               "chainEvents",
               ["id"],
-              (cb) => cb.onDelete("cascade"),
+              (cb) => cb.onDelete("cascade")
             )
             .addForeignKeyConstraint(
               "signers_remove_chain_event_id_foreign",
               ["removeChainEventId"],
               "chainEvents",
               ["id"],
-              (cb) => cb.onDelete("cascade"),
-            ),
+              (cb) => cb.onDelete("cascade")
+            )
     )
     .execute();
 
   await createPartitions(db, "signers", PARTITIONS);
 
-  await db.schema.createIndex("signers_fid_index").on("signers").column("fid").execute();
+  await db.schema
+    .createIndex("signers_fid_index")
+    .on("signers")
+    .column("fid")
+    .execute();
 
-  await db.schema.createIndex("signers_requester_fid_index").on("signers").column("requesterFid").execute();
+  await db.schema
+    .createIndex("signers_requester_fid_index")
+    .on("signers")
+    .column("requesterFid")
+    .execute();
 
   // USERNAME PROOFS -------------------------------------------------------------------------------
   await db.schema
     .createTable("usernameProofs")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`).primaryKey())
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`generate_ulid()`).primaryKey()
+    )
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("deletedAt", "timestamptz")
     .addColumn("fid", "bigint", (col) => col.notNull())
@@ -225,16 +283,31 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("username", "text", (col) => col.notNull())
     .addColumn("signature", "bytea", (col) => col.notNull())
     .addColumn("owner", "bytea", (col) => col.notNull())
-    .addUniqueConstraint("username_proofs_username_timestamp_unique", ["username", "timestamp"])
-    .addForeignKeyConstraint("username_proofs_fid_foreign", ["fid"], "fids", ["fid"], (cb) => cb.onDelete("cascade"))
+    .addUniqueConstraint("username_proofs_username_timestamp_unique", [
+      "username",
+      "timestamp",
+    ])
+    .addForeignKeyConstraint(
+      "username_proofs_fid_foreign",
+      ["fid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
+    )
     .execute();
 
   // FNAMES ----------------------------------------------------------------------------------------
   await db.schema
     .createTable("fnames")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`).primaryKey())
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`generate_ulid()`).primaryKey()
+    )
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("registeredAt", "timestamptz", (col) => col.notNull())
     .addColumn("deletedAt", "timestamptz")
     .addColumn("fid", "bigint", (col) => col.notNull())
@@ -242,15 +315,25 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("username", "text", (col) => col.notNull())
     .addUniqueConstraint("fnames_fid_unique", ["fid"])
     .addUniqueConstraint("fnames_username_unique", ["username"])
-    .addForeignKeyConstraint("fnames_fid_foreign", ["fid"], "fids", ["fid"], (cb) => cb.onDelete("cascade"))
+    .addForeignKeyConstraint(
+      "fnames_fid_foreign",
+      ["fid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
+    )
     .execute();
 
   // MESSAGES -------------------------------------------------------------------------------------
   await db.schema
     .createTable("messages")
     .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("deletedAt", "timestamptz")
     .addColumn("prunedAt", "timestamptz")
@@ -264,9 +347,19 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("signer", "bytea", (col) => col.notNull())
     .addColumn("body", "json", (col) => col.notNull())
     .addColumn("raw", "bytea", (col) => col.notNull())
-    .addForeignKeyConstraint("messages_fid_foreign", ["fid"], "fids", ["fid"], (cb) => cb.onDelete("cascade"))
-    .addForeignKeyConstraint("messages_signer_fid_foreign", ["fid", "signer"], "signers", ["fid", "key"], (cb) =>
-      cb.onDelete("cascade"),
+    .addForeignKeyConstraint(
+      "messages_fid_foreign",
+      ["fid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
+    )
+    .addForeignKeyConstraint(
+      "messages_signer_fid_foreign",
+      ["fid", "signer"],
+      "signers",
+      ["fid", "key"],
+      (cb) => cb.onDelete("cascade")
     )
     .$call((qb) =>
       PARTITIONS
@@ -274,24 +367,42 @@ export const up = async (db: Kysely<any>) => {
             .addPrimaryKeyConstraint("messages_pkey", ["fid", "id"])
             .addUniqueConstraint("messages_hash_unique", ["fid", "hash"])
             .modifyEnd(sql`PARTITION BY HASH (fid)`)
-        : qb.addPrimaryKeyConstraint("messages_pkey", ["id"]).addUniqueConstraint("messages_hash_unique", ["hash"]),
+        : qb
+            .addPrimaryKeyConstraint("messages_pkey", ["id"])
+            .addUniqueConstraint("messages_hash_unique", ["hash"])
     )
     .execute();
 
   await createPartitions(db, "messages", PARTITIONS);
 
-  await db.schema.createIndex("messages_timestamp_index").on("messages").columns(["timestamp"]).execute();
+  await db.schema
+    .createIndex("messages_timestamp_index")
+    .on("messages")
+    .columns(["timestamp"])
+    .execute();
 
-  await db.schema.createIndex("messages_fid_index").on("messages").columns(["fid"]).execute();
+  await db.schema
+    .createIndex("messages_fid_index")
+    .on("messages")
+    .columns(["fid"])
+    .execute();
 
-  await db.schema.createIndex("messages_signer_index").on("messages").columns(["signer"]).execute();
+  await db.schema
+    .createIndex("messages_signer_index")
+    .on("messages")
+    .columns(["signer"])
+    .execute();
 
   // CASTS ----------------------------------------------------------------------------------------
   await db.schema
     .createTable("casts")
     .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("deletedAt", "timestamptz")
     .addColumn("fid", "bigint", (col) => col.notNull())
@@ -304,23 +415,40 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("text", "text", (col) => col.notNull())
     .addColumn("embeds", "json", (col) => col.notNull().defaultTo(sql`'[]'`))
     .addColumn("mentions", "json", (col) => col.notNull().defaultTo(sql`'[]'`))
-    .addColumn("mentionsPositions", "json", (col) => col.notNull().defaultTo(sql`'[]'`))
-    .addForeignKeyConstraint("casts_fid_foreign", ["fid"], "fids", ["fid"], (cb) => cb.onDelete("cascade"))
+    .addColumn("mentionsPositions", "json", (col) =>
+      col.notNull().defaultTo(sql`'[]'`)
+    )
+    .addColumn("embedding", "vector(3)" as any)
+    .addForeignKeyConstraint(
+      "casts_fid_foreign",
+      ["fid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
+    )
     .$call((qb) =>
       PARTITIONS
         ? qb
             .addPrimaryKeyConstraint("casts_pkey", ["id", "fid"])
             .addUniqueConstraint("casts_hash_fid_unique", ["hash", "fid"])
-            .addForeignKeyConstraint("casts_hash_foreign", ["hash", "fid"], "messages", ["hash", "fid"], (cb) =>
-              cb.onDelete("cascade"),
+            .addForeignKeyConstraint(
+              "casts_hash_foreign",
+              ["hash", "fid"],
+              "messages",
+              ["hash", "fid"],
+              (cb) => cb.onDelete("cascade")
             )
             .modifyEnd(sql`PARTITION BY HASH (fid)`)
         : qb
             .addPrimaryKeyConstraint("casts_pkey", ["id"])
             .addUniqueConstraint("casts_hash_unique", ["hash"])
-            .addForeignKeyConstraint("casts_hash_foreign", ["hash"], "messages", ["hash"], (cb) =>
-              cb.onDelete("cascade"),
-            ),
+            .addForeignKeyConstraint(
+              "casts_hash_foreign",
+              ["hash"],
+              "messages",
+              ["hash"],
+              (cb) => cb.onDelete("cascade")
+            )
     )
     .execute();
 
@@ -333,7 +461,11 @@ export const up = async (db: Kysely<any>) => {
     .where(sql.ref("deleted_at"), "is", null) // Only index active (non-deleted) casts
     .execute();
 
-  await db.schema.createIndex("casts_timestamp_index").on("casts").columns(["timestamp"]).execute();
+  await db.schema
+    .createIndex("casts_timestamp_index")
+    .on("casts")
+    .columns(["timestamp"])
+    .execute();
 
   await db.schema
     .createIndex("casts_parent_hash_index")
@@ -367,8 +499,12 @@ export const up = async (db: Kysely<any>) => {
   await db.schema
     .createTable("reactions")
     .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("deletedAt", "timestamptz")
     .addColumn("fid", "bigint", (col) => col.notNull())
@@ -377,32 +513,50 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("hash", "bytea", (col) => col.notNull())
     .addColumn("targetCastHash", "bytea")
     .addColumn("targetUrl", "text")
-    .addForeignKeyConstraint("reactions_fid_foreign", ["fid"], "fids", ["fid"], (cb) => cb.onDelete("cascade"))
+    .addForeignKeyConstraint(
+      "reactions_fid_foreign",
+      ["fid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
+    )
     .$call((qb) =>
       PARTITIONS
         ? qb
             .addPrimaryKeyConstraint("reactions_pkey", ["id", "fid"])
             .addUniqueConstraint("reactions_hash_fid_unique", ["hash", "fid"])
-            .addForeignKeyConstraint("reactions_hash_foreign", ["hash", "fid"], "messages", ["hash", "fid"], (cb) =>
-              cb.onDelete("cascade"),
+            .addForeignKeyConstraint(
+              "reactions_hash_foreign",
+              ["hash", "fid"],
+              "messages",
+              ["hash", "fid"],
+              (cb) => cb.onDelete("cascade")
             )
             .addForeignKeyConstraint(
               "reactions_target_hash_fid_foreign",
               ["targetCastHash", "targetCastFid"],
               "casts",
               ["hash", "fid"],
-              (cb) => cb.onDelete("cascade"),
+              (cb) => cb.onDelete("cascade")
             )
             .modifyEnd(sql`PARTITION BY HASH (fid)`)
         : qb
             .addPrimaryKeyConstraint("reactions_pkey", ["id"])
             .addUniqueConstraint("reactions_hash_unique", ["hash"])
-            .addForeignKeyConstraint("reactions_hash_foreign", ["hash"], "messages", ["hash"], (cb) =>
-              cb.onDelete("cascade"),
+            .addForeignKeyConstraint(
+              "reactions_hash_foreign",
+              ["hash"],
+              "messages",
+              ["hash"],
+              (cb) => cb.onDelete("cascade")
             )
-            .addForeignKeyConstraint("reactions_target_hash_foreign", ["targetCastHash"], "casts", ["hash"], (cb) =>
-              cb.onDelete("cascade"),
-            ),
+            .addForeignKeyConstraint(
+              "reactions_target_hash_foreign",
+              ["targetCastHash"],
+              "casts",
+              ["hash"],
+              (cb) => cb.onDelete("cascade")
+            )
     )
     .execute();
 
@@ -413,7 +567,7 @@ export const up = async (db: Kysely<any>) => {
   // that includes both targetCastHash and targetUrl together, where one or the other is null.
   // We need `nulls not distinct` so that null is treated like a normal value (requires PG 15+)
   await sql`ALTER TABLE reactions ADD CONSTRAINT reactions_fid_type_target_cast_hash_target_url_unique UNIQUE NULLS NOT DISTINCT (fid, type, target_cast_hash, target_url)`.execute(
-    db,
+    db
   );
 
   await db.schema
@@ -441,8 +595,12 @@ export const up = async (db: Kysely<any>) => {
   await db.schema
     .createTable("links")
     .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("deletedAt", "timestamptz")
     .addColumn("fid", "bigint", (col) => col.notNull())
@@ -450,15 +608,29 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("displayTimestamp", "timestamptz")
     .addColumn("type", "text", (col) => col.notNull())
     .addColumn("hash", "bytea", (col) => col.notNull())
-    .addForeignKeyConstraint("links_fid_foreign", ["fid"], "fids", ["fid"], (cb) => cb.onDelete("cascade"))
-    .addForeignKeyConstraint("links_target_fid_foreign", ["targetFid"], "fids", ["fid"], (cb) => cb.onDelete("cascade"))
+    .addForeignKeyConstraint(
+      "links_fid_foreign",
+      ["fid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
+    )
+    .addForeignKeyConstraint(
+      "links_target_fid_foreign",
+      ["targetFid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
+    )
     .$call((qb) =>
       PARTITIONS
         ? qb
             .addPrimaryKeyConstraint("links_pkey", ["id", "fid"])
             .addUniqueConstraint("links_fid_hash_unique", ["hash", "fid"])
             .modifyEnd(sql`PARTITION BY HASH (fid)`)
-        : qb.addPrimaryKeyConstraint("links_pkey", ["id"]).addUniqueConstraint("links_hash_unique", ["hash"]),
+        : qb
+            .addPrimaryKeyConstraint("links_pkey", ["id"])
+            .addUniqueConstraint("links_hash_unique", ["hash"])
     )
     .execute();
 
@@ -469,15 +641,19 @@ export const up = async (db: Kysely<any>) => {
   // We therefore need `nulls not distinct` so that null is treated like a normal value (requires PG 15+)
   // Requires raw SQL until https://github.com/kysely-org/kysely/issues/711 is implemented.
   await sql`CREATE UNIQUE INDEX links_fid_target_fid_type_unique ON links (fid, target_fid, type) NULLS NOT DISTINCT`.execute(
-    db,
+    db
   );
 
   // VERIFICATIONS ---------------------------------------------------------------------------------
   await db.schema
     .createTable("verifications")
     .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("deletedAt", "timestamptz")
     .addColumn("fid", "bigint", (col) => col.notNull())
@@ -485,8 +661,17 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("signerAddress", "bytea", (col) => col.notNull())
     .addColumn("blockHash", "bytea", (col) => col.notNull())
     .addColumn("signature", "bytea", (col) => col.notNull())
-    .addUniqueConstraint("verifications_signer_address_fid_unique", ["signerAddress", "fid"])
-    .addForeignKeyConstraint("verifications_fid_foreign", ["fid"], "fids", ["fid"], (cb) => cb.onDelete("cascade"))
+    .addUniqueConstraint("verifications_signer_address_fid_unique", [
+      "signerAddress",
+      "fid",
+    ])
+    .addForeignKeyConstraint(
+      "verifications_fid_foreign",
+      ["fid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
+    )
     .$call((qb) =>
       PARTITIONS
         ? qb
@@ -496,14 +681,18 @@ export const up = async (db: Kysely<any>) => {
               ["hash", "fid"],
               "messages",
               ["hash", "fid"],
-              (cb) => cb.onDelete("cascade"),
+              (cb) => cb.onDelete("cascade")
             )
             .modifyEnd(sql`PARTITION BY HASH (fid)`)
         : qb
             .addPrimaryKeyConstraint("verifications_pkey", ["id"])
-            .addForeignKeyConstraint("verifications_hash_foreign", ["hash"], "messages", ["hash"], (cb) =>
-              cb.onDelete("cascade"),
-            ),
+            .addForeignKeyConstraint(
+              "verifications_hash_foreign",
+              ["hash"],
+              "messages",
+              ["hash"],
+              (cb) => cb.onDelete("cascade")
+            )
     )
     .execute();
 
@@ -519,8 +708,12 @@ export const up = async (db: Kysely<any>) => {
   await db.schema
     .createTable("userData")
     .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("deletedAt", "timestamptz")
     .addColumn("fid", "bigint", (col) => col.notNull())
@@ -528,7 +721,13 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("hash", "bytea", (col) => col.notNull())
     .addColumn("value", "text", (col) => col.notNull())
     .addUniqueConstraint("user_data_fid_type_unique", ["fid", "type"])
-    .addForeignKeyConstraint("user_data_fid_foreign", ["fid"], "fids", ["fid"], (cb) => cb.onDelete("cascade"))
+    .addForeignKeyConstraint(
+      "user_data_fid_foreign",
+      ["fid"],
+      "fids",
+      ["fid"],
+      (cb) => cb.onDelete("cascade")
+    )
     .$call((qb) =>
       PARTITIONS
         ? qb
@@ -539,15 +738,19 @@ export const up = async (db: Kysely<any>) => {
               ["hash", "fid"],
               "messages",
               ["hash", "fid"],
-              (cb) => cb.onDelete("cascade"),
+              (cb) => cb.onDelete("cascade")
             )
             .modifyEnd(sql`PARTITION BY HASH (fid)`)
         : qb
             .addPrimaryKeyConstraint("user_data_pkey", ["id"])
             .addUniqueConstraint("user_data_hash_unique", ["hash"])
-            .addForeignKeyConstraint("user_data_hash_foreign", ["hash"], "messages", ["hash"], (cb) =>
-              cb.onDelete("cascade"),
-            ),
+            .addForeignKeyConstraint(
+              "user_data_hash_foreign",
+              ["hash"],
+              "messages",
+              ["hash"],
+              (cb) => cb.onDelete("cascade")
+            )
     )
     .execute();
 
@@ -557,15 +760,22 @@ export const up = async (db: Kysely<any>) => {
   await db.schema
     .createTable("storageAllocations")
     .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
-    .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
-    .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
+    .addColumn("createdAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
+    .addColumn("updatedAt", "timestamptz", (col) =>
+      col.notNull().defaultTo(sql`current_timestamp`)
+    )
     .addColumn("rentedAt", "timestamptz", (col) => col.notNull())
     .addColumn("expiresAt", "timestamptz", (col) => col.notNull())
     .addColumn("chainEventId", "uuid", (col) => col.notNull())
     .addColumn("fid", "bigint", (col) => col.notNull())
     .addColumn("units", sql`smallint`, (col) => col.notNull())
     .addColumn("payer", "bytea", (col) => col.notNull())
-    .addUniqueConstraint("storage_chain_event_id_fid_unique", ["chainEventId", "fid"])
+    .addUniqueConstraint("storage_chain_event_id_fid_unique", [
+      "chainEventId",
+      "fid",
+    ])
     .$call((qb) =>
       PARTITIONS
         ? qb
@@ -576,13 +786,17 @@ export const up = async (db: Kysely<any>) => {
               ["chainEventId", "fid"],
               "chainEvents",
               ["id", "fid"],
-              (cb) => cb.onDelete("cascade"),
+              (cb) => cb.onDelete("cascade")
             )
         : qb
             .addPrimaryKeyConstraint("storage_allocations_pkey", ["id"])
-            .addForeignKeyConstraint("fids_chain_event_id_foreign", ["chainEventId"], "chainEvents", ["id"], (cb) =>
-              cb.onDelete("cascade"),
-            ),
+            .addForeignKeyConstraint(
+              "fids_chain_event_id_foreign",
+              ["chainEventId"],
+              "chainEvents",
+              ["id"],
+              (cb) => cb.onDelete("cascade")
+            )
     )
     .execute();
 
