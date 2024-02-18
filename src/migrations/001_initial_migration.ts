@@ -68,17 +68,12 @@ export const up = async (db: Kysely<any>) => {
   // Used for generating random bytes in ULID creation
   await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`.execute(db);
 
-  // ULID generation function for creating unique IDs without centralized coordination.
-  // Avoids limitations of a monotonic (auto-incrementing) ID.
-  await sql`CREATE FUNCTION generate_ulid() RETURNS uuid
-    LANGUAGE sql STRICT PARALLEL SAFE
-    RETURN ((lpad(to_hex((floor((EXTRACT(epoch FROM clock_timestamp()) * (1000)::numeric)))::bigint), 12, '0'::text) || encode(public.gen_random_bytes(10), 'hex'::text)))::uuid;
-  `.execute(db);
-
   // CHAIN EVENTS --------------------------------------------------------------------------------
   await db.schema
     .createTable("chainEvents")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`SELECT generate_ulid()`)
+    )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
     )
@@ -180,7 +175,9 @@ export const up = async (db: Kysely<any>) => {
   // SIGNERS --------------------------------------------------------------------------------------
   await db.schema
     .createTable("signers")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`SELECT generate_ulid()`)
+    )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
     )
@@ -268,7 +265,7 @@ export const up = async (db: Kysely<any>) => {
   await db.schema
     .createTable("usernameProofs")
     .addColumn("id", "uuid", (col) =>
-      col.defaultTo(sql`generate_ulid()`).primaryKey()
+      col.defaultTo(sql`SELECT generate_ulid()`).primaryKey()
     )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
@@ -300,7 +297,7 @@ export const up = async (db: Kysely<any>) => {
   await db.schema
     .createTable("fnames")
     .addColumn("id", "uuid", (col) =>
-      col.defaultTo(sql`generate_ulid()`).primaryKey()
+      col.defaultTo(sql`SELECT generate_ulid()`).primaryKey()
     )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
@@ -311,8 +308,13 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("registeredAt", "timestamptz", (col) => col.notNull())
     .addColumn("deletedAt", "timestamptz")
     .addColumn("fid", "bigint", (col) => col.notNull())
+
     .addColumn("type", sql`smallint`, (col) => col.notNull())
     .addColumn("username", "text", (col) => col.notNull())
+    .addColumn("display_name", "text", (col) => col.notNull())
+    .addColumn("bio", "text")
+    .addColumn("pfp", "text")
+    .addColumn("embedding", "vector(1536)" as any)
     .addUniqueConstraint("fnames_fid_unique", ["fid"])
     .addUniqueConstraint("fnames_username_unique", ["username"])
     .addForeignKeyConstraint(
@@ -327,7 +329,9 @@ export const up = async (db: Kysely<any>) => {
   // MESSAGES -------------------------------------------------------------------------------------
   await db.schema
     .createTable("messages")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`SELECT generate_ulid()`)
+    )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
     )
@@ -396,7 +400,9 @@ export const up = async (db: Kysely<any>) => {
   // CASTS ----------------------------------------------------------------------------------------
   await db.schema
     .createTable("casts")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`SELECT generate_ulid()`)
+    )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
     )
@@ -418,7 +424,7 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("mentionsPositions", "json", (col) =>
       col.notNull().defaultTo(sql`'[]'`)
     )
-    .addColumn("embedding", "vector(3)" as any)
+    .addColumn("embedding", "vector(1536)" as any)
     .addForeignKeyConstraint(
       "casts_fid_foreign",
       ["fid"],
@@ -498,7 +504,9 @@ export const up = async (db: Kysely<any>) => {
   // REACTIONS -------------------------------------------------------------------------------------
   await db.schema
     .createTable("reactions")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`SELECT generate_ulid()`)
+    )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
     )
@@ -594,7 +602,9 @@ export const up = async (db: Kysely<any>) => {
   // LINKS ----------------------------------------------------------------------------------------
   await db.schema
     .createTable("links")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`SELECT generate_ulid()`)
+    )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
     )
@@ -647,7 +657,9 @@ export const up = async (db: Kysely<any>) => {
   // VERIFICATIONS ---------------------------------------------------------------------------------
   await db.schema
     .createTable("verifications")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`SELECT generate_ulid()`)
+    )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
     )
@@ -707,7 +719,9 @@ export const up = async (db: Kysely<any>) => {
   // USER DATA ------------------------------------------------------------------------------------
   await db.schema
     .createTable("userData")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`SELECT generate_ulid()`)
+    )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
     )
@@ -759,7 +773,9 @@ export const up = async (db: Kysely<any>) => {
   // STORAGE ALLOCATIONS ---------------------------------------------------------------------------
   await db.schema
     .createTable("storageAllocations")
-    .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
+    .addColumn("id", "uuid", (col) =>
+      col.defaultTo(sql`SELECT generate_ulid()`)
+    )
     .addColumn("createdAt", "timestamptz", (col) =>
       col.notNull().defaultTo(sql`current_timestamp`)
     )

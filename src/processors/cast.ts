@@ -174,6 +174,8 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
       valuesObject.embeds = JSON.stringify([...existingEmbeds, embedding]);
     }
 
+    console.log("valuesObject", valuesObject);
+
     return await executeTakeFirstOrThrow(
       trx
         .insertInto("casts")
