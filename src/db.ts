@@ -172,6 +172,10 @@ export type FnameRow = {
   fid: Fid;
   type: UserNameType;
   username: string;
+  display_name?: string;
+  bio?: string;
+  pfp?: string;
+  embedding?: string;
 };
 
 // MESSAGES ---------------------------------------------------------------------------------------
