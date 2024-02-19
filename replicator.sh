@@ -250,7 +250,7 @@ ensure_grafana() {
 
 ## Configure Grafana
 setup_grafana() {
-    local grafana_url="http://127.0.0.1:9001"
+    local grafana_url="http://0.0.0.0:9001"
     local credentials
     local response dashboard_uid prefs
 
