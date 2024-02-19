@@ -96,9 +96,9 @@ export class HubReplicator {
       )
     );
 
-    for (const [tableName, count] of Object.entries(stats)) {
-      statsd().gauge(`db.${tableName}.rows`, count as number);
-    }
+    // for (const [tableName, count] of Object.entries(stats)) {
+    //   statsd().gauge(`db.${tableName}.rows`, count as number);
+    // }
   }
 
   private async backfill() {

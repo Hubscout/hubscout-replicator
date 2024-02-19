@@ -278,7 +278,7 @@ export async function processMessage(
         // Did we add a new message type?
         exhaustiveGuard(message.data.type);
     }
-    statsd().increment(`messages.${operation}.${message.data.type}`);
+    // statsd().increment(`messages.${operation}.${message.data.type}`);
   } catch (e: unknown) {
     const raw = Message.encode(message).finish();
     let blockedOnFid: number | null = null;
@@ -297,7 +297,7 @@ export async function processMessage(
             );
           blockedOnFid = e.blockedOnFid || null;
           blockedOnHash = e.blockedOnHash ? bytesToHex(e.blockedOnHash) : null;
-          statsd().increment(`messages.blocked.${e.reason}`);
+          // statsd().increment(`messages.blocked.${e.reason}`);
         }
       }
     }
