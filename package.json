@@ -19,7 +19,8 @@
         "migrate": "node ./build/app.js migrate",
         "prestart": "npm run build",
         "start": "node ./build/app.js start",
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit",
+        "startapp": "docker build -t replicator:latest . ;  npm run build; ./replicator.sh up"
     },
     "engines": {
         "node": ">=18"

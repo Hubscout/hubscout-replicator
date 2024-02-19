@@ -166,15 +166,12 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
       embeds: JSON.stringify(transformedEmbeds),
       mentions: JSON.stringify(mentions),
       mentionsPositions: JSON.stringify(mentionsPositions),
-    };
+    } as any;
 
     // Conditionally add embedding if it's not null
     if (embedding !== null) {
-      const existingEmbeds = JSON.parse(valuesObject.embeds);
-      valuesObject.embeds = JSON.stringify([...existingEmbeds, embedding]);
+      valuesObject.embedding = embedding;
     }
-
-    console.log("valuesObject", valuesObject);
 
     return await executeTakeFirstOrThrow(
       trx
