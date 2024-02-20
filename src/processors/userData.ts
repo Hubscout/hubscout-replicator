@@ -59,11 +59,11 @@ export const processUserDataAdd = async (
                 .set({ [key]: message.data.userDataBody.value, embedding })
                 .execute();
             } catch (e) {
-              console.log("error", e);
+              console.log("error in inner", e);
             }
           }
         } catch (e) {
-          console.log("error", e);
+          console.log("error in outer", e);
         }
     }
   }
