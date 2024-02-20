@@ -15,7 +15,10 @@ const MAX_PAGE_SIZE = 1_000;
 export const BackfillFidData = registerJob({
   name: "BackfillFidData",
   run: async ({ fid }: { fid: number }, { db, log, redis, hub }) => {
-    const alreadyBackfilledSigners = await redis.sismember("backfilled-signers", fid);
+    const alreadyBackfilledSigners = await redis.sismember(
+      "backfilled-signers",
+      fid
+    );
     if (!alreadyBackfilledSigners) {
       let signerEvents: OnChainEvent[] = [];
       for await (const events of getOnChainEventsByFidInBatchesOf(hub, {
@@ -28,7 +31,12 @@ export const BackfillFidData = registerJob({
 
       // Since there could be many events, ensure we process them in sorted order
       const sortedEventsForFid = signerEvents.sort((a, b) =>
-        a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber - b.blockNumber,
+        a.blockNumber === b.blockNumber
+          ? a.logIndex - b.logIndex
+          : a.blockNumber - b.blockNumber
+      );
+      console.log(
+        `backfilling ${sortedEventsForFid.length} signer events for FID ${fid}`
       );
       await processOnChainEvents(sortedEventsForFid, db, log, redis);
       await redis.sadd("backfilled-signers", fid);
