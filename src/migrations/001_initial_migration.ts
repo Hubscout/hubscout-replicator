@@ -314,7 +314,7 @@ export const up = async (db: Kysely<any>) => {
 
     .addColumn("type", sql`smallint`, (col) => col.notNull())
     .addColumn("username", "text", (col) => col.notNull())
-    .addColumn("display_name", "text", (col) => col.notNull())
+    .addColumn("display_name", "text")
     .addColumn("bio", "text")
     .addColumn("pfp", "text")
     .addColumn("embedding", "vector(1536)" as any)
