@@ -175,7 +175,6 @@ export type FnameRow = {
   display_name?: string;
   bio?: string;
   pfp?: string;
-  embedding?: string;
 };
 
 // MESSAGES ---------------------------------------------------------------------------------------
@@ -298,7 +297,6 @@ export type CastRow = {
   rootParentUrl: string | null;
   parentUrl: string | null;
   text: string;
-  embedding?: string;
   embeds: ColumnType<CastEmbedJson[], string, string>;
   mentions: ColumnType<Fid[], string, string>;
   mentionsPositions: ColumnType<number[], string, string>;

@@ -13,11 +13,7 @@ import {
   executeTakeFirst,
   executeTakeFirstOrThrow,
 } from "../db.js";
-import {
-  bytesToHex,
-  farcasterTimeToDate,
-  generateOpenAIEmbeddingUrl,
-} from "../util.js";
+import { bytesToHex, farcasterTimeToDate } from "../util.js";
 import { AssertionError, HubEventProcessingBlockedError } from "../error.js";
 import { PARTITIONS } from "../env.js";
 
@@ -150,8 +146,6 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
       rootParentUrl = parentCast.rootParentUrl;
     }
 
-    const embedding = await generateOpenAIEmbeddingUrl(text);
-
     // Base object for insertion
     let valuesObject = {
       timestamp: farcasterTimeToDate(timestamp),
@@ -167,11 +161,6 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
       mentions: JSON.stringify(mentions),
       mentionsPositions: JSON.stringify(mentionsPositions),
     } as any;
-
-    // Conditionally add embedding if it's not null
-    if (embedding !== null) {
-      valuesObject.embedding = embedding;
-    }
 
     return await executeTakeFirstOrThrow(
       trx

@@ -70,10 +70,10 @@ export const up = async (db: Kysely<any>) => {
 
   // ULID generation function for creating unique IDs without centralized coordination.
   // Avoids limitations of a monotonic (auto-incrementing) ID.
-  // await sql`CREATE FUNCTION generate_ulid() RETURNS uuid
-  //   LANGUAGE sql STRICT PARALLEL SAFE
-  //   RETURN ((lpad(to_hex((floor((EXTRACT(epoch FROM clock_timestamp()) * (1000)::numeric)))::bigint), 12, '0'::text) || encode(gen_random_bytes(10), 'hex'::text)))::uuid;
-  // `.execute(db);
+  await sql`CREATE FUNCTION generate_ulid() RETURNS uuid
+    LANGUAGE sql STRICT PARALLEL SAFE
+    RETURN ((lpad(to_hex((floor((EXTRACT(epoch FROM clock_timestamp()) * (1000)::numeric)))::bigint), 12, '0'::text) || encode(gen_random_bytes(10), 'hex'::text)))::uuid;
+  `.execute(db);
 
   // CHAIN EVENTS --------------------------------------------------------------------------------
   await db.schema
@@ -317,7 +317,6 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("display_name", "text")
     .addColumn("bio", "text")
     .addColumn("pfp", "text")
-    .addColumn("embedding", "vector(1536)" as any)
     .addUniqueConstraint("fnames_fid_unique", ["fid"])
     .addUniqueConstraint("fnames_username_unique", ["username"])
     .addForeignKeyConstraint(
@@ -357,13 +356,6 @@ export const up = async (db: Kysely<any>) => {
       ["fid"],
       "fids",
       ["fid"],
-      (cb) => cb.onDelete("cascade")
-    )
-    .addForeignKeyConstraint(
-      "messages_signer_fid_foreign",
-      ["fid", "signer"],
-      "signers",
-      ["fid", "key"],
       (cb) => cb.onDelete("cascade")
     )
     .$call((qb) =>
@@ -422,14 +414,6 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("mentions", "json", (col) => col.notNull().defaultTo(sql`'[]'`))
     .addColumn("mentionsPositions", "json", (col) =>
       col.notNull().defaultTo(sql`'[]'`)
-    )
-    .addColumn("embedding", "vector(1536)" as any)
-    .addForeignKeyConstraint(
-      "casts_fid_foreign",
-      ["fid"],
-      "fids",
-      ["fid"],
-      (cb) => cb.onDelete("cascade")
     )
     .$call((qb) =>
       PARTITIONS
@@ -518,13 +502,6 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("hash", "bytea", (col) => col.notNull())
     .addColumn("targetCastHash", "bytea")
     .addColumn("targetUrl", "text")
-    .addForeignKeyConstraint(
-      "reactions_fid_foreign",
-      ["fid"],
-      "fids",
-      ["fid"],
-      (cb) => cb.onDelete("cascade")
-    )
     .$call((qb) =>
       PARTITIONS
         ? qb
@@ -726,13 +703,6 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("hash", "bytea", (col) => col.notNull())
     .addColumn("value", "text", (col) => col.notNull())
     .addUniqueConstraint("user_data_fid_type_unique", ["fid", "type"])
-    .addForeignKeyConstraint(
-      "user_data_fid_foreign",
-      ["fid"],
-      "fids",
-      ["fid"],
-      (cb) => cb.onDelete("cascade")
-    )
     .$call((qb) =>
       PARTITIONS
         ? qb

@@ -7,7 +7,6 @@ export const processUserDataAdd = async (
   trx: DBTransaction
 ) => {
   const now = new Date();
-  console.log("msg data", message.data);
   if (
     message.data.userDataBody.type === 1 ||
     message.data.userDataBody.type === 2 ||
@@ -51,12 +50,10 @@ export const processUserDataAdd = async (
             if (bio) text += bio;
             console.log("text is", text);
             try {
-              const embedding = await generateOpenAIEmbeddingUrl(text);
-              console.log("embedding is", embedding);
               await trx
                 .updateTable("fnames")
                 .where("fid", "=", fid)
-                .set({ [key]: message.data.userDataBody.value, embedding })
+                .set({ [key]: message.data.userDataBody.value })
                 .execute();
             } catch (e) {
               console.log("error in inner", e);
