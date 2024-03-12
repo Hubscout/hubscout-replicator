@@ -575,8 +575,7 @@ export async function createEmbeddingWithRetry(
       // Recursive call to the function, decreasing retries and increasing backoff time
       await createEmbeddingWithRetry(cast, retries - 1, backoff * 2, trx);
     } else {
-      // If not a 429 error or out of retries, throw the error
-      throw error;
+      console.log("Error adding embedding:", error);
     }
   }
 }
