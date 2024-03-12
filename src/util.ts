@@ -37,7 +37,6 @@ import {
   CastRemoveBodyJson,
   ChainEventBodyJson,
   executeTakeFirstOrThrow,
-  getDbClient,
   Hex,
   IdRegisterEventBodyJson,
   LinkBodyJson,
@@ -536,7 +535,7 @@ export async function createEmbeddingWithRetry(
 
     if (embedding.data && embedding.data.length > 0) {
       // Continue with your database logic as before
-      const db = getDbClient();
+
       await executeTakeFirstOrThrow(
         await trx.insertInto("casts_embeddings").values({
           hash: cast.hash,
@@ -549,15 +548,23 @@ export async function createEmbeddingWithRetry(
           },
         })
       );
-      sql`
+      await trx
+        .raw(
+          `
       DROP INDEX IF EXISTS "casts_embeddings_hash_index"
-    `.execute(db);
+  `
+        )
+        .execute();
 
-      sql`
+      await trx
+        .raw(
+          `
       CREATE INDEX "casts_embeddings_hash_index"
       ON "casts_embeddings"
       USING hnsw (embedding vector_cosine_ops)
-    `.execute(db);
+  `
+        )
+        .execute();
     }
   } catch (error) {
     console.error("Error:", error);
