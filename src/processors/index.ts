@@ -31,7 +31,7 @@ import {
 import { Redis } from "ioredis";
 import { sql } from "kysely";
 import { DB, DBTransaction, execute, executeTx } from "../db.js";
-import { PARTITIONS } from "../env.js";
+import { PARTITIONS } from "../env";
 import { Logger } from "../log.js";
 import {
   StoreMessageOperation,

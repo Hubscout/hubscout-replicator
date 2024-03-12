@@ -10,7 +10,7 @@ import {
   REDIS_URL,
   STATSD_HOST,
   STATSD_METRICS_PREFIX,
-} from "./env.js";
+} from "./env";
 import { Logger, log } from "./log.js";
 import { getHubClient } from "./hub.js";
 import { HubReplicator } from "./hubReplicator.js";

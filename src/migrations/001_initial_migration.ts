@@ -1,5 +1,5 @@
 import { Kysely, sql } from "kysely";
-import { PARTITIONS } from "../env.js"; // This was experimental. Don't actually use it.
+import { PARTITIONS } from "../env"; // This was experimental. Don't actually use it.
 
 /**************************************************************************************************
   Notes about the patterns in this file:

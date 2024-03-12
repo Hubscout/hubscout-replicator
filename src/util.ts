@@ -27,7 +27,6 @@ import {
   sql,
   UpdateQueryBuilder,
 } from "kysely";
-import pg from "pg";
 import pgvector from "pgvector/pg";
 import { format as formatSql } from "sql-formatter";
 import { decodeAbiParameters } from "viem";
@@ -523,41 +522,22 @@ export async function terminateProcess({
 export async function createEmbeddingWithRetry(
   cast,
   retries = 3,
-  backoff = 3000,
-  trx
+  backoff = 3000
 ) {
   try {
-    //replace new lines with nothing
     const embedding = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: cast.text.replace(/(\r\n|\n|\r)/gm, ""),
     });
-
     if (embedding.data && embedding.data.length > 0) {
-      // Continue with your database logic as before
-
-      await executeTakeFirstOrThrow(
-        trx.insertInto("casts_embeddings").values({
-          hash: cast.hash,
-          embedding: pgvector.toSql(embedding.data[0].embedding),
-          metadata: {
-            timestamp: cast.timestamp,
-            parentUrl: cast.parentUrl,
-            rootParentUrl: cast.rootParentUrl,
-            fid: cast.fid,
-            text: cast.text,
-          },
-        })
-      );
+      return embedding.data[0].embedding;
     }
   } catch (error) {
     console.error("Error:", error);
     if (error.response && error.response.status === 429 && retries > 0) {
       console.log(`Rate limit exceeded. Retrying in ${backoff}ms...`);
-      // Wait for the backoff period before retrying
       await new Promise((resolve) => setTimeout(resolve, backoff));
-      // Recursive call to the function, decreasing retries and increasing backoff time
-      await createEmbeddingWithRetry(cast, retries - 1, backoff * 2, trx);
+      await createEmbeddingWithRetry(cast, retries - 1, backoff * 2);
     } else {
       console.log("Error adding embedding:", error);
     }

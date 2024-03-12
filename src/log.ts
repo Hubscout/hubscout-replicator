@@ -1,4 +1,4 @@
-import { LOG_LEVEL, COLORIZE } from "./env.js";
+import { LOG_LEVEL, COLORIZE } from "./env";
 import { pino } from "pino";
 
 export const log = pino({

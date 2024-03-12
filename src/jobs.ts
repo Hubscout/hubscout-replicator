@@ -6,7 +6,7 @@ import fs from "fs";
 import { DB } from "./db.js";
 import { Logger } from "./log.js";
 import { AssertionError } from "./error.js";
-import { REDIS_URL } from "./env.js";
+import { REDIS_URL } from "./env";
 import { JSONValue } from "./util.js";
 import { getRedisClient } from "./redis.js";
 
@@ -20,12 +20,19 @@ type QueueName = keyof typeof JOB_QUEUES;
 
 type UtilArgs = { db: DB; redis: Redis; log: Logger; hub: HubRpcClient };
 
-interface JobEnqueuer<TReturn, TJobName extends string, TArgs extends JSONValue | undefined = undefined> {
+interface JobEnqueuer<
+  TReturn,
+  TJobName extends string,
+  TArgs extends JSONValue | undefined = undefined
+> {
   name: TJobName;
   run: (args: TArgs, utils: UtilArgs) => Promise<TReturn>;
-  enqueue(args: TArgs, jobOptions?: JobsOptions): Promise<Job<TArgs, TReturn, TJobName>>;
+  enqueue(
+    args: TArgs,
+    jobOptions?: JobsOptions
+  ): Promise<Job<TArgs, TReturn, TJobName>>;
   enqueueBulk(
-    jobDefs: Array<{ args: TArgs; bulkJobOptions?: BulkJobOptions }>,
+    jobDefs: Array<{ args: TArgs; bulkJobOptions?: BulkJobOptions }>
   ): Promise<Job<TArgs, TReturn, TJobName>[]>;
 }
 
@@ -40,7 +47,11 @@ const GLOBAL_DEFAULT_JOB_OPTIONS: JobsOptions = {
   },
 } as const;
 
-export const registerJob = <TJobName extends string, TReturn, TArgs extends JSONValue | undefined = undefined>({
+export const registerJob = <
+  TJobName extends string,
+  TReturn,
+  TArgs extends JSONValue | undefined = undefined
+>({
   name,
   run,
   opts = {},
@@ -55,19 +66,25 @@ export const registerJob = <TJobName extends string, TReturn, TArgs extends JSON
   const jobEnqueuer = {
     name,
     run,
-    async enqueue(args: TArgs, jobOptions: JobsOptions = {}): Promise<Job<TArgs, TReturn, TJobName>> {
-      const job = await JOB_QUEUES[queue].add(name, args, { ...defaultOptionsForJobType, ...jobOptions });
+    async enqueue(
+      args: TArgs,
+      jobOptions: JobsOptions = {}
+    ): Promise<Job<TArgs, TReturn, TJobName>> {
+      const job = await JOB_QUEUES[queue].add(name, args, {
+        ...defaultOptionsForJobType,
+        ...jobOptions,
+      });
       return job as Job<TArgs, TReturn, TJobName>;
     },
     async enqueueBulk(
-      jobDefs: Array<{ args: TArgs; bulkJobOptions?: BulkJobOptions }>,
+      jobDefs: Array<{ args: TArgs; bulkJobOptions?: BulkJobOptions }>
     ): Promise<Job<TArgs, TReturn, TJobName>[]> {
       const jobs = await JOB_QUEUES[queue].addBulk(
         jobDefs.map(({ args, bulkJobOptions }) => ({
           name,
           data: args,
           opts: { ...defaultOptionsForJobType, ...bulkJobOptions },
-        })),
+        }))
       );
       return jobs as Job<TArgs, TReturn, TJobName>[];
     },
@@ -78,9 +95,16 @@ export const registerJob = <TJobName extends string, TReturn, TArgs extends JSON
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-export const runJob = async (job: SandboxedJob<any, any>, db: DB, redis: Redis, log: Logger, hub: HubRpcClient) => {
+export const runJob = async (
+  job: SandboxedJob<any, any>,
+  db: DB,
+  redis: Redis,
+  log: Logger,
+  hub: HubRpcClient
+) => {
   const jobRunner = registeredJobTypes.get(job.name);
-  if (jobRunner === undefined) throw new AssertionError(`Unknown job type ${job.name}`);
+  if (jobRunner === undefined)
+    throw new AssertionError(`Unknown job type ${job.name}`);
   return jobRunner.run(job.data, { db, redis, log, hub });
 };
 
@@ -90,10 +114,13 @@ export const loadJobs = async () => {
       .readdirSync(path.join(__dirname, "jobs"), { withFileTypes: true })
       .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
-      .filter((fileName) => /\.[jt]s$/.test(fileName) && !/\.test\.[jt]s$/.test(fileName))
+      .filter(
+        (fileName) =>
+          /\.[jt]s$/.test(fileName) && !/\.test\.[jt]s$/.test(fileName)
+      )
       .map((fileName) => path.basename(path.basename(fileName, ".ts"), ".js"))
       .map(async (basename) => {
         await import(`./jobs/${basename}`);
-      }),
+      })
   );
 };

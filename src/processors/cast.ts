@@ -18,8 +18,9 @@ import {
   createEmbeddingWithRetry,
   farcasterTimeToDate,
 } from "../util.js";
+import pgvector from "pgvector/pg";
 import { AssertionError, HubEventProcessingBlockedError } from "../error.js";
-import { PARTITIONS } from "../env.js";
+import { PARTITIONS } from "../env";
 
 const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
   CastAddMessage,
@@ -195,7 +196,21 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
 
     if (cast.text) {
       try {
-        const addEmbedding = await createEmbeddingWithRetry(cast, 3, 3000, trx);
+        const embedding = await createEmbeddingWithRetry(cast, 3, 3000);
+        console.log("embedding", embedding);
+        await executeTakeFirstOrThrow(
+          trx.insertInto("casts_embeddings").values({
+            hash: cast.hash,
+            embedding,
+            metadata: {
+              timestamp: cast.timestamp,
+              parentUrl: cast.parentUrl,
+              rootParentUrl: cast.rootParentUrl,
+              fid: cast.fid,
+              text: cast.text,
+            },
+          })
+        );
       } catch (error) {
         console.error("Error adding embedding:", error);
       }

@@ -11,7 +11,13 @@ import {
   isStorageRentOnChainEvent,
 } from "@farcaster/hub-nodejs";
 import { Selectable } from "kysely";
-import { ChainEventRow, DBTransaction, execute, executeTakeFirst, executeTakeFirstOrThrow } from "../db.js";
+import {
+  ChainEventRow,
+  DBTransaction,
+  execute,
+  executeTakeFirst,
+  executeTakeFirstOrThrow,
+} from "../db.js";
 import {
   NULL_ETH_ADDRESS,
   convertOnChainEventBodyToJson,
@@ -20,11 +26,11 @@ import {
   farcasterTimeToDate,
 } from "../util.js";
 import { AssertionError } from "../error.js";
-import { PARTITIONS } from "../env.js";
+import { PARTITIONS } from "../env";
 
 export const storeChainEvent = async (
   event: OnChainEvent,
-  trx: DBTransaction,
+  trx: DBTransaction
 ): Promise<[Selectable<ChainEventRow>, boolean]> => {
   const body = JSON.stringify(convertOnChainEventBodyToJson(event));
   const raw = OnChainEvent.encode(event).finish();
@@ -49,11 +55,13 @@ export const storeChainEvent = async (
       .onConflict((oc) =>
         oc
           .$call((qb) =>
-            PARTITIONS ? qb.columns(["blockNumber", "logIndex", "fid"]) : qb.columns(["blockNumber", "logIndex"]),
+            PARTITIONS
+              ? qb.columns(["blockNumber", "logIndex", "fid"])
+              : qb.columns(["blockNumber", "logIndex"])
           )
-          .doNothing(),
+          .doNothing()
       )
-      .returningAll(),
+      .returningAll()
   );
 
   if (!chainEvent) {
@@ -64,7 +72,7 @@ export const storeChainEvent = async (
         .selectAll()
         .where("blockNumber", "=", event.blockNumber)
         .where("logIndex", "=", event.logIndex)
-        .$if(!!PARTITIONS, (qb) => qb.where("fid", "=", event.fid)),
+        .$if(!!PARTITIONS, (qb) => qb.where("fid", "=", event.fid))
     );
   }
 
@@ -74,14 +82,16 @@ export const storeChainEvent = async (
 const processSignerChainEvent = async (
   event: SignerOnChainEvent,
   chainEvent: Selectable<ChainEventRow>,
-  trx: DBTransaction,
+  trx: DBTransaction
 ) => {
   const body = event.signerEventBody;
   const timestamp = new Date(event.blockTimestamp * 1000);
 
   switch (body.eventType) {
     case SignerEventType.ADD: {
-      const signedKeyRequestMetadata = decodeSignedKeyRequestMetadata(body.metadata);
+      const signedKeyRequestMetadata = decodeSignedKeyRequestMetadata(
+        body.metadata
+      );
       const metadataJson = {
         requestFid: Number(signedKeyRequestMetadata.requestFid),
         requestSigner: signedKeyRequestMetadata.requestSigner,
@@ -112,8 +122,8 @@ const processSignerChainEvent = async (
               metadata: JSON.stringify(metadataJson),
               metadataType: ref("excluded.metadataType"),
               updatedAt: new Date(),
-            })),
-          ),
+            }))
+          )
       );
       break;
     }
@@ -128,7 +138,7 @@ const processSignerChainEvent = async (
             updatedAt: new Date(),
           })
           .where("fid", "=", event.fid)
-          .where("key", "=", body.key),
+          .where("key", "=", body.key)
       );
       break;
     }
@@ -139,7 +149,7 @@ const processSignerChainEvent = async (
           .deleteFrom("signers")
           .where("fid", "=", event.fid)
           .where("key", "=", body.key)
-          .where("keyType", "=", body.keyType),
+          .where("keyType", "=", body.keyType)
       );
       break;
     }
@@ -149,11 +159,13 @@ const processSignerChainEvent = async (
 const processIdRegisterChainEvent = async (
   event: IdRegisterOnChainEvent,
   chainEvent: Selectable<ChainEventRow>,
-  trx: DBTransaction,
+  trx: DBTransaction
 ) => {
   const body = event.idRegisterEventBody;
   const custodyAddress = body.to.length ? body.to : NULL_ETH_ADDRESS;
-  const recoveryAddress = body.recoveryAddress.length ? body.recoveryAddress : NULL_ETH_ADDRESS;
+  const recoveryAddress = body.recoveryAddress.length
+    ? body.recoveryAddress
+    : NULL_ETH_ADDRESS;
 
   switch (body.eventType) {
     case IdRegisterEventType.REGISTER: {
@@ -173,7 +185,7 @@ const processIdRegisterChainEvent = async (
             custodyAddress: ref("excluded.custodyAddress"),
             recoveryAddress: ref("excluded.recoveryAddress"),
             updatedAt: new Date(),
-          })),
+          }))
         )
         .execute();
       break;
@@ -202,7 +214,9 @@ const processIdRegisterChainEvent = async (
       break;
     }
     case IdRegisterEventType.NONE:
-      throw new AssertionError(`Invalid IdRegisterEventType: ${body.eventType}`);
+      throw new AssertionError(
+        `Invalid IdRegisterEventType: ${body.eventType}`
+      );
     default:
       // If we're getting a type error on the line below, it means we've missed a case above.
       // Did we add a new event type?
@@ -213,7 +227,7 @@ const processIdRegisterChainEvent = async (
 const processStorageRentChainEvent = async (
   event: StorageRentOnChainEvent,
   chainEvent: Selectable<ChainEventRow>,
-  trx: DBTransaction,
+  trx: DBTransaction
 ) => {
   const body = event.storageRentEventBody;
   const timestamp = new Date(event.blockTimestamp * 1000);
@@ -235,28 +249,35 @@ const processStorageRentChainEvent = async (
         expiresAt: ref("excluded.expiresAt"),
         rentedAt: ref("excluded.rentedAt"),
         updatedAt: new Date(),
-      })),
+      }))
     )
     .execute();
 };
 
-export const processOnChainEvent = async (event: OnChainEvent, trx: DBTransaction, skipIfAlreadyStored = true) => {
+export const processOnChainEvent = async (
+  event: OnChainEvent,
+  trx: DBTransaction,
+  skipIfAlreadyStored = true
+) => {
   const [chainEvent, alreadyStored] = await storeChainEvent(event, trx);
   if (alreadyStored && skipIfAlreadyStored) return;
 
   switch (event.type) {
     case OnChainEventType.EVENT_TYPE_SIGNER:
-      if (!isSignerOnChainEvent(event)) throw new AssertionError(`Invalid SignerOnChainEvent: ${event}`);
+      if (!isSignerOnChainEvent(event))
+        throw new AssertionError(`Invalid SignerOnChainEvent: ${event}`);
       await processSignerChainEvent(event, chainEvent, trx);
       break;
     case OnChainEventType.EVENT_TYPE_SIGNER_MIGRATED:
       break; // Nothing to do since there's no derived tables for this event
     case OnChainEventType.EVENT_TYPE_ID_REGISTER:
-      if (!isIdRegisterOnChainEvent(event)) throw new AssertionError(`Invalid IdRegisterOnChainEvent: ${event}`);
+      if (!isIdRegisterOnChainEvent(event))
+        throw new AssertionError(`Invalid IdRegisterOnChainEvent: ${event}`);
       await processIdRegisterChainEvent(event, chainEvent, trx);
       break;
     case OnChainEventType.EVENT_TYPE_STORAGE_RENT:
-      if (!isStorageRentOnChainEvent(event)) throw new AssertionError(`Invalid StorageRentOnChainEvent: ${event}`);
+      if (!isStorageRentOnChainEvent(event))
+        throw new AssertionError(`Invalid StorageRentOnChainEvent: ${event}`);
       await processStorageRentChainEvent(event, chainEvent, trx);
       break;
     case OnChainEventType.EVENT_TYPE_NONE:
