@@ -12,7 +12,6 @@ import {
   CastRow,
   executeTakeFirst,
   executeTakeFirstOrThrow,
-  getDbClient,
 } from "../db.js";
 import {
   bytesToHex,
