@@ -59,7 +59,7 @@ import { pid } from "process";
 import OpenAI from "openai";
 
 import "dotenv/config";
-import { POSTGRES_URL } from "env.js";
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   maxRetries: 3,
@@ -531,13 +531,12 @@ export async function createEmbeddingWithRetry(
     //replace new lines with nothing
     const embedding = await openai.embeddings.create({
       model: "text-embedding-3-small",
-
       input: cast.text.replace(/(\r\n|\n|\r)/gm, ""),
     });
 
     if (embedding.data && embedding.data.length > 0) {
       // Continue with your database logic as before
-      const db = getDbClient(POSTGRES_URL);
+      const db = getDbClient(process.env.POSTGRES_URL);
 
       await executeTakeFirstOrThrow(
         trx.insertInto("casts_embeddings").values({
