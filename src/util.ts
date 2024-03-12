@@ -545,6 +545,7 @@ export async function createEmbeddingWithRetry(
           metadata: {
             timestamp: cast.timestamp,
             parentUrl: cast.parentUrl,
+            rootParentUrl: cast.rootParentUrl,
             fid: cast.fid,
             text: cast.text,
           },
@@ -558,6 +559,7 @@ export async function createEmbeddingWithRetry(
       CREATE INDEX "casts_embeddings_hash_index"
       ON "casts_embeddings"
       USING hnsw (embedding vector_cosine_ops)`.execute(db);
+      console.log("made indexes");
     }
   } catch (error) {
     console.error("Error:", error);
