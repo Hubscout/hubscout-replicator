@@ -17,7 +17,7 @@ import { BackfillFidRegistration } from "./jobs/backfillFidRegistration.js";
 import { ProcessHubEvent } from "./jobs/processHubEvent.js";
 import { processOnChainEvent } from "./processors/onChainEvent.js";
 import { statsd } from "./statsd.js";
-import { generateOpenAIEmbeddingUrl, sleep } from "./util.js";
+import { sleep } from "./util.js";
 
 export class HubReplicator {
   private eventsSubscriber: HubSubscriber;

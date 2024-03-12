@@ -386,6 +386,12 @@ export type StorageAllocationRow = {
   payer: Uint8Array;
 };
 
+export interface CastsEmbeddingsRow {
+  hash: Uint8Array;
+  embedding: any;
+  metadata: any;
+}
+
 // ALL TABLES -------------------------------------------------------------------------------------
 export interface Tables {
   usernameProofs: UsernameProofRow;
@@ -400,6 +406,7 @@ export interface Tables {
   verifications: VerificationRow;
   userData: UserDataRow;
   storageAllocations: StorageAllocationRow;
+  casts_embeddings: any;
 }
 
 export const getDbClient = (connectionString?: string) => {

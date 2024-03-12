@@ -12,8 +12,13 @@ import {
   CastRow,
   executeTakeFirst,
   executeTakeFirstOrThrow,
+  getDbClient,
 } from "../db.js";
-import { bytesToHex, farcasterTimeToDate } from "../util.js";
+import {
+  bytesToHex,
+  createEmbeddingWithRetry,
+  farcasterTimeToDate,
+} from "../util.js";
 import { AssertionError, HubEventProcessingBlockedError } from "../error.js";
 import { PARTITIONS } from "../env.js";
 
@@ -146,26 +151,23 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
       rootParentUrl = parentCast.rootParentUrl;
     }
 
-    // Base object for insertion
-    let valuesObject = {
-      timestamp: farcasterTimeToDate(timestamp),
-      deletedAt: deleted ? new Date() : null,
-      fid,
-      parentFid: parentCastId?.fid || null,
-      hash,
-      rootParentHash: rootParentHash || parentCastId?.hash || null,
-      parentHash: parentCastId?.hash || null,
-      rootParentUrl: rootParentUrl || parentUrl || null,
-      text,
-      embeds: JSON.stringify(transformedEmbeds),
-      mentions: JSON.stringify(mentions),
-      mentionsPositions: JSON.stringify(mentionsPositions),
-    } as any;
-
     return await executeTakeFirstOrThrow(
       trx
         .insertInto("casts")
-        .values(valuesObject)
+        .values({
+          timestamp: farcasterTimeToDate(timestamp),
+          deletedAt: deleted ? new Date() : null,
+          fid,
+          parentFid: parentCastId?.fid || null,
+          hash,
+          rootParentHash: rootParentHash || parentCastId?.hash || null,
+          parentHash: parentCastId?.hash || null,
+          rootParentUrl: rootParentUrl || parentUrl || null,
+          text,
+          embeds: JSON.stringify(transformedEmbeds),
+          mentions: JSON.stringify(mentions),
+          mentionsPositions: JSON.stringify(mentionsPositions),
+        })
         .onConflict((oc) =>
           oc
             .$call((qb) =>
@@ -184,6 +186,21 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
   },
   async onAdd({ data: cast, isCreate, skipSideEffects, trx }) {
     // Update any other derived data
+    // await db.schema
+    //   .createTable("casts_embeddings")
+    //   .addColumn("hash", "bytea", (cb) => cb.primaryKey())
+    //   .addColumn("embedding", "vector(3)")
+    //   .addColumn("metadata", "jsonb")
+    //   .addUniqueConstraint("casts_embeddings_hash_unique", ["hash"])
+    //   .execute();
+
+    if (cast.text) {
+      try {
+        const addEmbedding = await createEmbeddingWithRetry(cast, 3, 3000, trx);
+      } catch (error) {
+        console.error("Error adding embedding:", error);
+      }
+    }
     if (!skipSideEffects) {
       // Trigger any one-time side effects (push notifications, etc.)
     }

@@ -24,9 +24,9 @@ import {
   DeleteQueryBuilder,
   InsertQueryBuilder,
   SelectQueryBuilder,
+  sql,
   UpdateQueryBuilder,
 } from "kysely";
-import OpenAI from "openai";
 import pg from "pg";
 import pgvector from "pgvector/pg";
 import { format as formatSql } from "sql-formatter";
@@ -36,6 +36,8 @@ import {
   CastEmbedJson,
   CastRemoveBodyJson,
   ChainEventBodyJson,
+  executeTakeFirstOrThrow,
+  getDbClient,
   Hex,
   IdRegisterEventBodyJson,
   LinkBodyJson,
@@ -54,6 +56,13 @@ import { AssertionError } from "./error.js";
 import { Logger } from "./log.js";
 import { threadId as workerThreadId } from "worker_threads";
 import { pid } from "process";
+import OpenAI from "openai";
+
+import "dotenv/config";
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  maxRetries: 3,
+});
 
 export type StoreMessageOperation = "merge" | "delete" | "prune" | "revoke";
 
@@ -68,29 +77,6 @@ export type JSONValue =
 export const NULL_ETH_ADDRESS = Uint8Array.from(
   Buffer.from("0000000000000000000000000000000000000000", "hex")
 );
-
-export async function generateOpenAIEmbeddingUrl(
-  text: string
-): Promise<string | null> {
-  try {
-    // Initialize pgvector-node client
-    const openai = new OpenAI({
-      apiKey: process.env.OPEN_AI_KEY,
-      maxRetries: 3,
-    });
-    const response = await openai.embeddings.create({
-      input: text,
-      model: "text-embedding-3-small",
-    });
-
-    const embedding = response.data[0].embedding;
-
-    return pgvector.toSql(embedding);
-  } catch (e) {
-    console.error(e);
-    return null;
-  }
-}
 
 export function farcasterTimeToDate(time: undefined): undefined;
 export function farcasterTimeToDate(time: null): null;
@@ -532,6 +518,57 @@ export async function terminateProcess({
     process.exitCode = 1;
   }
   process.exit();
+}
+
+export async function createEmbeddingWithRetry(
+  cast,
+  retries = 3,
+  backoff = 3000,
+  trx
+) {
+  try {
+    const embedding = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: cast.text,
+    });
+
+    if (embedding.data && embedding.data.length > 0) {
+      // Continue with your database logic as before
+      const db = getDbClient();
+      await executeTakeFirstOrThrow(
+        await trx.insertInto("casts_embeddings").values({
+          hash: cast.hash,
+          embedding: pgvector.toSql(embedding.data[0].embedding),
+          metadata: {
+            timestamp: cast.timestamp,
+            parentUrl: cast.parentUrl,
+            fid: cast.fid,
+          },
+        })
+      );
+      sql`
+      DROP INDEX IF EXISTS "casts_embeddings_hash_index"
+    `.execute(db);
+
+      sql`
+      CREATE INDEX "casts_embeddings_hash_index"
+      ON "casts_embeddings"
+      USING hnsw (embedding vector_cosine_ops)
+    `.execute(db);
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    if (error.response && error.response.status === 429 && retries > 0) {
+      console.log(`Rate limit exceeded. Retrying in ${backoff}ms...`);
+      // Wait for the backoff period before retrying
+      await new Promise((resolve) => setTimeout(resolve, backoff));
+      // Recursive call to the function, decreasing retries and increasing backoff time
+      await createEmbeddingWithRetry(cast, retries - 1, backoff * 2, trx);
+    } else {
+      // If not a 429 error or out of retries, throw the error
+      throw error;
+    }
+  }
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code

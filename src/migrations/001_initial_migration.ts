@@ -444,6 +444,18 @@ export const up = async (db: Kysely<any>) => {
   await createPartitions(db, "casts", PARTITIONS);
 
   await db.schema
+    .createTable("casts_embeddings")
+    .addColumn("hash", "bytea", (cb) => cb.primaryKey())
+    .addColumn("embedding", "vector(1536)" as any)
+    .addColumn("metadata", "jsonb")
+    .addUniqueConstraint("casts_embeddings_hash_unique", ["hash"])
+    .execute();
+
+  await sql`
+    CREATE INDEX "casts_embeddings_hash_index"
+    ON "casts_embeddings"
+    USING hnsw (embedding vector_cosine_ops)`.execute(db);
+  await db.schema
     .createIndex("casts_active_fid_timestamp_index")
     .on("casts")
     .columns(["fid", "timestamp"])
