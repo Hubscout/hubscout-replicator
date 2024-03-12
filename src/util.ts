@@ -537,7 +537,7 @@ export async function createEmbeddingWithRetry(
       // Continue with your database logic as before
 
       await executeTakeFirstOrThrow(
-        await trx.insertInto("casts_embeddings").values({
+        trx.insertInto("casts_embeddings").values({
           hash: cast.hash,
           embedding: pgvector.toSql(embedding.data[0].embedding),
           metadata: {
@@ -548,23 +548,23 @@ export async function createEmbeddingWithRetry(
           },
         })
       );
-      await trx
-        .raw(
+      await executeTakeFirstOrThrow(
+        trx.raw(
           `
       DROP INDEX IF EXISTS "casts_embeddings_hash_index"
   `
         )
-        .execute();
+      );
 
-      await trx
-        .raw(
+      await executeTakeFirstOrThrow(
+        trx.raw(
           `
       CREATE INDEX "casts_embeddings_hash_index"
       ON "casts_embeddings"
       USING hnsw (embedding vector_cosine_ops)
   `
         )
-        .execute();
+      );
     }
   } catch (error) {
     console.error("Error:", error);
