@@ -527,9 +527,11 @@ export async function createEmbeddingWithRetry(
   trx
 ) {
   try {
+    //replace new lines with nothing
     const embedding = await openai.embeddings.create({
       model: "text-embedding-3-small",
-      input: cast.text,
+
+      input: cast.text.replace(/(\r\n|\n|\r)/gm, ""),
     });
 
     if (embedding.data && embedding.data.length > 0) {
@@ -543,6 +545,7 @@ export async function createEmbeddingWithRetry(
             timestamp: cast.timestamp,
             parentUrl: cast.parentUrl,
             fid: cast.fid,
+            text: cast.text,
           },
         })
       );
