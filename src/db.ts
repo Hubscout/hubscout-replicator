@@ -34,12 +34,12 @@ import {
 import * as path from "path";
 import { promises as fs } from "fs";
 import { err, ok, Result } from "neverthrow";
-import { Logger } from "./log.js";
-import { extendStackTrace } from "./util.js";
+import { Logger } from "./log";
+import { extendStackTrace } from "./util";
 import {
   DrainOuterGeneric,
   SimplifySingleResult,
-} from "kysely/dist/cjs/util/type-utils.js";
+} from "kysely/dist/cjs/util/type-utils";
 
 // BigInts will not exceed Number.MAX_SAFE_INTEGER for our use case.
 // Return as JavaScript's `number` type so it's easier to work with.

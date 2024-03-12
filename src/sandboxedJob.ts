@@ -1,12 +1,12 @@
 import { SandboxedJob } from "bullmq";
 import { isMainThread } from "worker_threads";
-import { loadJobs, runJob } from "./jobs.js";
+import { loadJobs, runJob } from "./jobs";
 import { HUB_HOST, HUB_SSL, POSTGRES_URL, REDIS_URL } from "./env";
-import { log } from "./log.js";
-import { getDbClient } from "./db.js";
-import { getHubClient } from "./hub.js";
-import { getRedisClient } from "./redis.js";
-import { threadId, processId, terminateProcess, onTerminate } from "./util.js";
+import { log } from "./log";
+import { getDbClient } from "./db";
+import { getHubClient } from "./hub";
+import { getRedisClient } from "./redis";
+import { threadId, processId, terminateProcess, onTerminate } from "./util";
 
 loadJobs();
 

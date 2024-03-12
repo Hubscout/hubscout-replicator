@@ -1,7 +1,7 @@
 import { Command } from "@commander-js/extra-typings";
 import * as repl from "repl";
 import { readFileSync } from "fs";
-import { DB, getDbClient, migrateToLatest, migrationStatus } from "./db.js";
+import { DB, getDbClient, migrateToLatest, migrationStatus } from "./db";
 import {
   CONCURRENCY,
   HUB_HOST,
@@ -11,14 +11,14 @@ import {
   STATSD_HOST,
   STATSD_METRICS_PREFIX,
 } from "./env";
-import { Logger, log } from "./log.js";
-import { getHubClient } from "./hub.js";
-import { HubReplicator } from "./hubReplicator.js";
-import { getRedisClient } from "./redis.js";
-import { terminateProcess, onTerminate } from "./util.js";
-import { getWebApp } from "./web.js";
-import { getWorker } from "./worker.js";
-import { initializeStatsd, statsd } from "./statsd.js";
+import { Logger, log } from "./log";
+import { getHubClient } from "./hub";
+import { HubReplicator } from "./hubReplicator";
+import { getRedisClient } from "./redis";
+import { terminateProcess, onTerminate } from "./util";
+import { getWebApp } from "./web";
+import { getWorker } from "./worker";
+import { initializeStatsd, statsd } from "./statsd";
 
 // Perform shutdown cleanup on termination signal
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
