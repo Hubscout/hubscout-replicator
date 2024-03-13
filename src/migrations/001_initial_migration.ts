@@ -1,5 +1,5 @@
 import { Kysely, sql } from "kysely";
-import { PARTITIONS } from "../env"; // This was experimental. Don't actually use it.
+import { PARTITIONS } from "../env.js"; // This was experimental. Don't actually use it.
 
 /**************************************************************************************************
   Notes about the patterns in this file:
@@ -445,16 +445,10 @@ export const up = async (db: Kysely<any>) => {
 
   await db.schema
     .createTable("casts_embeddings")
-    .addColumn("hash", "bytea", (cb) => cb.primaryKey())
-    .addColumn("embedding", "vector(1536)" as any)
-    .addColumn("metadata", "jsonb")
-    .addUniqueConstraint("casts_embeddings_hash_unique", ["hash"])
+    .addColumn("hash ", "uuid")
+    .addColumn("embed", "json")
     .execute();
 
-  await sql`
-    CREATE INDEX "casts_embeddings_hash_index"
-    ON "casts_embeddings"
-    USING hnsw (embedding vector_cosine_ops)`.execute(db);
   await db.schema
     .createIndex("casts_active_fid_timestamp_index")
     .on("casts")

@@ -530,7 +530,7 @@ export async function createEmbeddingWithRetry(
       input: cast.text.replace(/(\r\n|\n|\r)/gm, ""),
     });
     if (embedding.data && embedding.data.length > 0) {
-      return embedding.data[0].embedding;
+      return pgvector.toSql(embedding.data[0].embedding);
     }
   } catch (error) {
     console.error("Error:", error);
