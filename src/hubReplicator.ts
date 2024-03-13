@@ -112,23 +112,6 @@ export class HubReplicator {
       throw new Error("Unable to get latest FID", {
         cause: maxFidResult.error,
       });
-    await Promise.all(
-      [
-        "backfilled-signers",
-        "backfilled-casts",
-        "backfilled-reactions",
-        "backfilled-links",
-        "backfilled-verifications",
-        "backfilled-userdata",
-        "backfilled-username-proofs",
-        "backfilled-other-onchain-events",
-      ].map((key) => this.redis.del(key))
-    );
-    // Then kick off backfill of all other data
-    await Promise.all([
-      this.enqueueBackfillJobs({ maxFid: 10000 }),
-      this.waitForOtherChainEventsBackfill({ maxFid: 10000 }),
-    ]);
     const maxFid = maxFidResult.value.fids[0];
     if (!maxFid) throw new AssertionError("Max FID was undefined");
 
