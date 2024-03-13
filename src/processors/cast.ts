@@ -66,6 +66,11 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
     );
   },
   async deleteDerivedRow(message, trx) {
+    await executeTakeFirstOrThrow(
+      trx
+        .deleteFrom("casts_embeddings")
+        .where("hash", "=", message.data.castRemoveBody.targetHash)
+    );
     return await executeTakeFirstOrThrow(
       trx
         .updateTable("casts")

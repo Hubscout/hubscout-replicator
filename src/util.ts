@@ -525,6 +525,7 @@ export async function createEmbeddingWithRetry(
   backoff = 3000
 ) {
   try {
+    console.log("cast", cast);
     const embedding = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: cast.text.replace(/(\r\n|\n|\r)/gm, ""),
