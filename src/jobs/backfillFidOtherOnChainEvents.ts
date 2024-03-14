@@ -21,7 +21,6 @@ export const BackfillFidOtherOnChainEvents = registerJob({
     })) {
       await executeTx(db, async (trx) => {
         for (const event of events) {
-          console.log("backfilling event", event);
           await storeChainEvent(event, trx);
         }
       });

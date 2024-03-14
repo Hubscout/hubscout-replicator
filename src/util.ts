@@ -20,14 +20,7 @@ import {
   VerificationAddAddressMessage,
   VerificationRemoveMessage,
 } from "@farcaster/hub-nodejs";
-import {
-  DeleteQueryBuilder,
-  InsertQueryBuilder,
-  SelectQueryBuilder,
-  sql,
-  UpdateQueryBuilder,
-} from "kysely";
-import pgvector from "pgvector/pg";
+import { DeleteQueryBuilder, InsertQueryBuilder, SelectQueryBuilder, UpdateQueryBuilder } from "kysely";
 import { format as formatSql } from "sql-formatter";
 import { decodeAbiParameters } from "viem";
 import {
@@ -35,7 +28,6 @@ import {
   CastEmbedJson,
   CastRemoveBodyJson,
   ChainEventBodyJson,
-  executeTakeFirstOrThrow,
   Hex,
   IdRegisterEventBodyJson,
   LinkBodyJson,
@@ -54,38 +46,19 @@ import { AssertionError } from "./error.js";
 import { Logger } from "./log.js";
 import { threadId as workerThreadId } from "worker_threads";
 import { pid } from "process";
-import OpenAI from "openai";
-
-import "dotenv/config";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  maxRetries: 3,
-});
+import base58 from "bs58";
 
 export type StoreMessageOperation = "merge" | "delete" | "prune" | "revoke";
 
-export type JSONValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JSONValue[]
-  | { [key: string]: JSONValue };
+export type JSONValue = string | number | boolean | null | JSONValue[] | { [key: string]: JSONValue };
 
-export const NULL_ETH_ADDRESS = Uint8Array.from(
-  Buffer.from("0000000000000000000000000000000000000000", "hex")
-);
+export const NULL_ETH_ADDRESS = Uint8Array.from(Buffer.from("0000000000000000000000000000000000000000", "hex"));
 
 export function farcasterTimeToDate(time: undefined): undefined;
 export function farcasterTimeToDate(time: null): null;
 export function farcasterTimeToDate(time: number): Date;
-export function farcasterTimeToDate(
-  time: number | null | undefined
-): Date | null | undefined;
-export function farcasterTimeToDate(
-  time: number | null | undefined
-): Date | null | undefined {
+export function farcasterTimeToDate(time: number | null | undefined): Date | null | undefined;
+export function farcasterTimeToDate(time: number | null | undefined): Date | null | undefined {
   if (time === undefined) return undefined;
   if (time === null) return null;
   const result = fromFarcasterTime(time);
@@ -96,12 +69,8 @@ export function farcasterTimeToDate(
 export function bytesToHex(bytes: undefined): undefined;
 export function bytesToHex(bytes: null): null;
 export function bytesToHex(bytes: Uint8Array): Hex;
-export function bytesToHex(
-  bytes: Uint8Array | null | undefined
-): Hex | null | undefined;
-export function bytesToHex(
-  bytes: Uint8Array | null | undefined
-): Hex | null | undefined {
+export function bytesToHex(bytes: Uint8Array | null | undefined): Hex | null | undefined;
+export function bytesToHex(bytes: Uint8Array | null | undefined): Hex | null | undefined {
   if (bytes === undefined) return undefined;
   if (bytes === null) return null;
   return `0x${Buffer.from(bytes).toString("hex")}`;
@@ -110,16 +79,11 @@ export function bytesToHex(
 export function hexToBytes(string: undefined): undefined;
 export function hexToBytes(string: null): null;
 export function hexToBytes(string: Hex): Uint8Array;
-export function hexToBytes(
-  string: Hex | null | undefined
-): Uint8Array | null | undefined;
-export function hexToBytes(
-  string: Hex | null | undefined
-): Uint8Array | null | undefined {
+export function hexToBytes(string: Hex | null | undefined): Uint8Array | null | undefined;
+export function hexToBytes(string: Hex | null | undefined): Uint8Array | null | undefined {
   if (string === undefined) return undefined;
   if (string === null) return null;
-  if (!string.startsWith("0x"))
-    throw new AssertionError(`Hex string must start with 0x: ${string}`);
+  if (!string.startsWith("0x")) throw new AssertionError(`Hex string must start with 0x: ${string}`);
   return Buffer.from(string.slice(2), "hex");
 }
 
@@ -152,62 +116,32 @@ export function decodeSignedKeyRequestMetadata(metadata: Uint8Array) {
   return decodeAbiParameters(signedKeyRequestAbi, bytesToHex(metadata))[0];
 }
 
+export function convertProtobufMessageBodyToJson(message: CastAddMessage): CastAddBodyJson;
+export function convertProtobufMessageBodyToJson(message: CastRemoveMessage): CastRemoveBodyJson;
+export function convertProtobufMessageBodyToJson(message: ReactionAddMessage | ReactionRemoveMessage): ReactionBodyJson;
+export function convertProtobufMessageBodyToJson(message: LinkAddMessage | LinkRemoveMessage): LinkBodyJson;
 export function convertProtobufMessageBodyToJson(
-  message: CastAddMessage
-): CastAddBodyJson;
-export function convertProtobufMessageBodyToJson(
-  message: CastRemoveMessage
-): CastRemoveBodyJson;
-export function convertProtobufMessageBodyToJson(
-  message: ReactionAddMessage | ReactionRemoveMessage
-): ReactionBodyJson;
-export function convertProtobufMessageBodyToJson(
-  message: LinkAddMessage | LinkRemoveMessage
-): LinkBodyJson;
-export function convertProtobufMessageBodyToJson(
-  message: VerificationAddAddressMessage
+  message: VerificationAddAddressMessage,
 ): VerificationAddEthAddressBodyJson;
-export function convertProtobufMessageBodyToJson(
-  message: VerificationRemoveMessage
-): VerificationRemoveBodyJson;
-export function convertProtobufMessageBodyToJson(
-  message: UserDataAddMessage
-): UserDataBodyJson;
-export function convertProtobufMessageBodyToJson(
-  message: UsernameProofMessage
-): UsernameProofBodyJson;
-export function convertProtobufMessageBodyToJson(
-  message: Message
-): MessageBodyJson;
-export function convertProtobufMessageBodyToJson(
-  message: Message
-): MessageBodyJson {
+export function convertProtobufMessageBodyToJson(message: VerificationRemoveMessage): VerificationRemoveBodyJson;
+export function convertProtobufMessageBodyToJson(message: UserDataAddMessage): UserDataBodyJson;
+export function convertProtobufMessageBodyToJson(message: UsernameProofMessage): UsernameProofBodyJson;
+export function convertProtobufMessageBodyToJson(message: Message): MessageBodyJson;
+export function convertProtobufMessageBodyToJson(message: Message): MessageBodyJson {
   if (!message.data) throw new AssertionError("Message has no data");
 
   switch (message.data?.type) {
     case MessageType.CAST_ADD: {
       if (!message.data.castAddBody) throw new Error("Missing castAddBody");
-      const {
-        embeds,
-        embedsDeprecated,
-        mentions,
-        mentionsPositions,
-        text,
-        parentCastId,
-        parentUrl,
-      } = message.data.castAddBody;
+      const { embeds, embedsDeprecated, mentions, mentionsPositions, text, parentCastId, parentUrl } =
+        message.data.castAddBody;
 
       const transformedEmbeds: CastEmbedJson[] = embedsDeprecated?.length
         ? embedsDeprecated.map((url) => ({ url }))
         : embeds.map(({ castId, url }) => {
-            if (castId)
-              return {
-                castId: { fid: castId.fid, hash: bytesToHex(castId.hash) },
-              };
+            if (castId) return { castId: { fid: castId.fid, hash: bytesToHex(castId.hash) } };
             if (url) return { url };
-            throw new AssertionError(
-              "Neither castId nor url is defined in embed"
-            );
+            throw new AssertionError("Neither castId nor url is defined in embed");
           });
 
       return {
@@ -216,24 +150,16 @@ export function convertProtobufMessageBodyToJson(
         mentionsPositions,
         text,
         ...(parentCastId
-          ? {
-              parentCastId: {
-                fid: parentCastId.fid,
-                hash: bytesToHex(parentCastId.hash),
-              },
-            }
+          ? { parentCastId: { fid: parentCastId.fid, hash: bytesToHex(parentCastId.hash) } }
           : parentUrl
           ? { parentUrl }
           : {}),
       } satisfies CastAddBodyJson;
     }
     case MessageType.CAST_REMOVE: {
-      if (!message.data.castRemoveBody)
-        throw new Error("Missing castRemoveBody");
+      if (!message.data.castRemoveBody) throw new Error("Missing castRemoveBody");
       const { targetHash } = message.data.castRemoveBody;
-      return {
-        targetHash: bytesToHex(targetHash),
-      } satisfies CastRemoveBodyJson;
+      return { targetHash: bytesToHex(targetHash) } satisfies CastRemoveBodyJson;
     }
     case MessageType.REACTION_ADD:
     case MessageType.REACTION_REMOVE: {
@@ -243,17 +169,12 @@ export function convertProtobufMessageBodyToJson(
           type,
           targetCastId: { fid, hash },
         } = message.data.reactionBody;
-        return {
-          type,
-          targetCastId: { fid, hash: bytesToHex(hash) },
-        } satisfies ReactionBodyJson;
+        return { type, targetCastId: { fid, hash: bytesToHex(hash) } } satisfies ReactionBodyJson;
       } else if (message.data.reactionBody.targetUrl) {
         const { type, targetUrl } = message.data.reactionBody;
         return { type, targetUrl } satisfies ReactionBodyJson;
       } else {
-        throw new AssertionError(
-          "Missing targetCastId and targetUrl on reactionBody"
-        );
+        throw new AssertionError("Missing targetCastId and targetUrl on reactionBody");
       }
     }
     case MessageType.LINK_ADD:
@@ -267,8 +188,7 @@ export function convertProtobufMessageBodyToJson(
         body.targetFid = targetFid;
       }
       if (displayTimestamp) {
-        body.displayTimestamp =
-          fromFarcasterTime(displayTimestamp)._unsafeUnwrap();
+        body.displayTimestamp = fromFarcasterTime(displayTimestamp)._unsafeUnwrap();
       }
       return body;
     }
@@ -276,8 +196,7 @@ export function convertProtobufMessageBodyToJson(
       if (!message.data.verificationAddAddressBody) {
         throw new Error("Missing verificationAddEthAddressBody");
       }
-      const { address, claimSignature, blockHash, protocol } =
-        message.data.verificationAddAddressBody;
+      const { address, claimSignature, blockHash, protocol } = message.data.verificationAddAddressBody;
       switch (protocol) {
         case Protocol.ETHEREUM:
           return {
@@ -288,9 +207,9 @@ export function convertProtobufMessageBodyToJson(
           } satisfies VerificationAddEthAddressBodyJson;
         case Protocol.SOLANA:
           return {
-            address: new TextDecoder().decode(address),
-            claimSignature: new TextDecoder().decode(claimSignature),
-            blockHash: new TextDecoder().decode(blockHash),
+            address: base58.encode(address),
+            claimSignature: bytesToHex(claimSignature),
+            blockHash: base58.encode(blockHash),
             protocol: Protocol.SOLANA,
           } satisfies VerificationAddSolAddressBodyJson;
         default:
@@ -298,8 +217,7 @@ export function convertProtobufMessageBodyToJson(
       }
     }
     case MessageType.VERIFICATION_REMOVE: {
-      if (!message.data.verificationRemoveBody)
-        throw new Error("Missing verificationRemoveBody");
+      if (!message.data.verificationRemoveBody) throw new Error("Missing verificationRemoveBody");
       const { address, protocol } = message.data.verificationRemoveBody;
       return {
         address: bytesToHex(address),
@@ -312,10 +230,8 @@ export function convertProtobufMessageBodyToJson(
       return { type, value } satisfies UserDataBodyJson;
     }
     case MessageType.USERNAME_PROOF: {
-      if (!message.data.usernameProofBody)
-        throw new Error("Missing usernameProofBody");
-      const { timestamp, name, owner, signature, fid, type } =
-        message.data.usernameProofBody;
+      if (!message.data.usernameProofBody) throw new Error("Missing usernameProofBody");
+      const { timestamp, name, owner, signature, fid, type } = message.data.usernameProofBody;
       return {
         timestamp,
         name: bytesToHex(name),
@@ -337,27 +253,22 @@ export function convertProtobufMessageBodyToJson(
 }
 
 export function convertOnChainEventBodyToJson(
-  event: OnChainEvent & { type: OnChainEventType.EVENT_TYPE_SIGNER }
+  event: OnChainEvent & { type: OnChainEventType.EVENT_TYPE_SIGNER },
 ): SignerEventBodyJson;
 export function convertOnChainEventBodyToJson(
-  event: OnChainEvent & { type: OnChainEventType.EVENT_TYPE_SIGNER_MIGRATED }
+  event: OnChainEvent & { type: OnChainEventType.EVENT_TYPE_SIGNER_MIGRATED },
 ): SignerMigratedEventBodyJson;
 export function convertOnChainEventBodyToJson(
-  event: OnChainEvent & { type: OnChainEventType.EVENT_TYPE_ID_REGISTER }
+  event: OnChainEvent & { type: OnChainEventType.EVENT_TYPE_ID_REGISTER },
 ): IdRegisterEventBodyJson;
 export function convertOnChainEventBodyToJson(
-  event: OnChainEvent & { type: OnChainEventType.EVENT_TYPE_STORAGE_RENT }
+  event: OnChainEvent & { type: OnChainEventType.EVENT_TYPE_STORAGE_RENT },
 ): StorageRentEventBodyJson;
-export function convertOnChainEventBodyToJson(
-  event: OnChainEvent
-): ChainEventBodyJson;
-export function convertOnChainEventBodyToJson(
-  event: OnChainEvent
-): ChainEventBodyJson {
+export function convertOnChainEventBodyToJson(event: OnChainEvent): ChainEventBodyJson;
+export function convertOnChainEventBodyToJson(event: OnChainEvent): ChainEventBodyJson {
   switch (event.type) {
     case OnChainEventType.EVENT_TYPE_SIGNER:
-      if (!isSignerOnChainEvent(event))
-        throw new AssertionError(`Invalid SignerOnChainEvent: ${event}`);
+      if (!isSignerOnChainEvent(event)) throw new AssertionError(`Invalid SignerOnChainEvent: ${event}`);
       return {
         key: bytesToHex(event.signerEventBody.key),
         keyType: event.signerEventBody.keyType,
@@ -367,15 +278,12 @@ export function convertOnChainEventBodyToJson(
       } satisfies SignerEventBodyJson;
     case OnChainEventType.EVENT_TYPE_SIGNER_MIGRATED:
       if (!isSignerMigratedOnChainEvent(event))
-        throw new AssertionError(
-          `Invalid SignerMigratedOnChainEvent: ${event}`
-        );
+        throw new AssertionError(`Invalid SignerMigratedOnChainEvent: ${event}`);
       return {
         migratedAt: event.signerMigratedEventBody.migratedAt,
       } satisfies SignerMigratedEventBodyJson;
     case OnChainEventType.EVENT_TYPE_ID_REGISTER:
-      if (!isIdRegisterOnChainEvent(event))
-        throw new AssertionError(`Invalid IdRegisterOnChainEvent: ${event}`);
+      if (!isIdRegisterOnChainEvent(event)) throw new AssertionError(`Invalid IdRegisterOnChainEvent: ${event}`);
       return {
         to: bytesToHex(event.idRegisterEventBody.to),
         eventType: event.idRegisterEventBody.eventType,
@@ -383,8 +291,7 @@ export function convertOnChainEventBodyToJson(
         recoveryAddress: bytesToHex(event.idRegisterEventBody.recoveryAddress),
       } satisfies IdRegisterEventBodyJson;
     case OnChainEventType.EVENT_TYPE_STORAGE_RENT:
-      if (!isStorageRentOnChainEvent(event))
-        throw new AssertionError(`Invalid StorageRentOnChainEvent: ${event}`);
+      if (!isStorageRentOnChainEvent(event)) throw new AssertionError(`Invalid StorageRentOnChainEvent: ${event}`);
       return {
         payer: bytesToHex(event.storageRentEventBody.payer),
         units: event.storageRentEventBody.units,
@@ -419,13 +326,13 @@ export function extendStackTrace(
   err: unknown,
   stackError: Error,
   query?: // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-  | SelectQueryBuilder<any, any, any>
+    | SelectQueryBuilder<any, any, any>
     // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
     | InsertQueryBuilder<any, any, any>
     // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
     | UpdateQueryBuilder<any, any, any, any>
     // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-    | DeleteQueryBuilder<any, any, any>
+    | DeleteQueryBuilder<any, any, any>,
 ): unknown {
   if (isStackHolder(err) && stackError.stack) {
     // Remove the first line that just says `Error`.
@@ -439,8 +346,7 @@ export function extendStackTrace(
       const params = parameters.map((param) => {
         if (param === null) return "null";
         // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-        if (ArrayBuffer.isView(param))
-          return `'\\x${Buffer.from(param as any).toString("hex")}'`;
+        if (ArrayBuffer.isView(param)) return `'\\x${Buffer.from(param as any).toString("hex")}'`;
         if (param instanceof Date) return `'${param.toISOString()}'`;
         if (Array.isArray(param)) return JSON.stringify(param);
         switch (typeof param) {
@@ -453,13 +359,8 @@ export function extendStackTrace(
             return `'${param}'`;
         }
       });
-      const indexedParams = Object.fromEntries(
-        params.map((param, index) => [index + 1, param])
-      );
-      err.stack += `\n${formatSql(sql, {
-        params: indexedParams,
-        language: "postgresql",
-      })}`;
+      const indexedParams = Object.fromEntries(params.map((param, index) => [index + 1, param]));
+      err.stack += `\n${formatSql(sql, { params: indexedParams, language: "postgresql" })}`;
     }
 
     return err;
@@ -473,11 +374,7 @@ interface StackHolder {
 
 function isStackHolder(obj: unknown): obj is StackHolder {
   // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-  return (
-    typeof obj === "object" &&
-    obj !== null &&
-    typeof (obj as any).stack === "string"
-  );
+  return typeof obj === "object" && obj !== null && typeof (obj as any).stack === "string";
 }
 
 // How long to wait for finalizers to complete before forcibly terminating
@@ -485,13 +382,7 @@ const SHUTDOWN_TIMEOUT_MS = 10_000;
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
 const finalizers: Array<() => Promise<any>> = [];
 
-export async function terminateProcess({
-  success,
-  log,
-}: {
-  success: boolean;
-  log: Logger;
-}) {
+export async function terminateProcess({ success, log }: { success: boolean; log: Logger }) {
   log.debug(`Terminating process. Running ${finalizers.length} finalizers...`);
   let completedFinalizers = 0;
   await Promise.race([
@@ -499,16 +390,12 @@ export async function terminateProcess({
       finalizers.map(async (fn) => {
         await fn();
         completedFinalizers += 1;
-        log.debug(
-          `Finished ${completedFinalizers}/${finalizers.length} finalizers`
-        );
-      })
+        log.debug(`Finished ${completedFinalizers}/${finalizers.length} finalizers`);
+      }),
     ),
     (async () => {
       await sleep(SHUTDOWN_TIMEOUT_MS);
-      log.debug(
-        `Finalizers took longer than ${SHUTDOWN_TIMEOUT_MS}ms to complete. Forcibly terminating.`
-      );
+      log.debug(`Finalizers took longer than ${SHUTDOWN_TIMEOUT_MS}ms to complete. Forcibly terminating.`);
     })(),
   ]);
   if (success) {
@@ -519,33 +406,23 @@ export async function terminateProcess({
   process.exit();
 }
 
-export async function createEmbeddingWithRetry(
-  cast,
-  retries = 3,
-  backoff = 3000
-) {
-  try {
-    console.log("cast", cast);
-    const embedding = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: cast.text.replace(/(\r\n|\n|\r)/gm, ""),
-    });
-    if (embedding.data && embedding.data.length > 0) {
-      return pgvector.toSql(embedding.data[0].embedding);
-    }
-  } catch (error) {
-    console.error("Error:", error);
-    if (error.response && error.response.status === 429 && retries > 0) {
-      console.log(`Rate limit exceeded. Retrying in ${backoff}ms...`);
-      await new Promise((resolve) => setTimeout(resolve, backoff));
-      await createEmbeddingWithRetry(cast, retries - 1, backoff * 2);
-    } else {
-      console.log("Error adding embedding:", error);
-    }
-  }
-}
-
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
 export function onTerminate(fn: () => Promise<any>) {
   finalizers.push(fn);
+}
+
+function isHexEncoded(data: Uint8Array): boolean {
+  // Regular expression to match hexadecimal character patterns
+  const hexPattern = /^[0-9a-fA-F]+$/;
+  // Convert the Uint8Array to a string to check against the pattern
+  const dataString = String.fromCharCode(...data);
+  return hexPattern.test(dataString) && data.length % 2 === 0;
+}
+export function toHexEncodedUint8Array(data: Uint8Array): Uint8Array {
+  if (isHexEncoded(data)) {
+    return data;
+  }
+
+  const hex = Buffer.from(data).toString("hex");
+  return hexToBytes(`0x${hex}`);
 }

@@ -1,5 +1,52 @@
 # @farcaster/replicator
 
+## 0.3.7
+
+### Patch Changes
+
+- 02bca881: fix(replicator): handle Hub errors in backfill
+
+## 0.3.6
+
+### Patch Changes
+
+- 0b1a6862: updateTableMetrics is using too much postgresql CPU
+
+## 0.3.5
+
+### Patch Changes
+
+- ff5b8cbc: Base 58 encode solana data
+
+## 0.3.4
+
+### Patch Changes
+
+- f7d13376: Fix unicode error for replicator, add constraint where verification message claim signatures must be hex
+  - @farcaster/hub-nodejs@0.11.6
+
+## 0.3.3
+
+### Patch Changes
+
+- 5a1764d8: perf: Move DB and Reactions store to rust
+- Updated dependencies [5a1764d8]
+  - @farcaster/hub-nodejs@0.11.5
+
+## 0.3.2
+
+### Patch Changes
+
+- addf097c: chore: update @farcaster/hub-nodejs
+
+## 0.3.1
+
+### Patch Changes
+
+- a8b7dfcb: fix: Replace hot-shots with @figma/hot-shots
+- Updated dependencies [5703d339]
+  - @farcaster/hub-nodejs@0.11.2
+
 ## 0.3.0
 
 ### Minor Changes

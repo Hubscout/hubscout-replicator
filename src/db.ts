@@ -15,8 +15,8 @@ import {
   QueryNode,
   ColumnType,
   MigrationInfo,
+  sql,
 } from "kysely";
-import pgvector from "pgvector/kysely";
 import Cursor from "pg-cursor";
 import { Pool, types } from "pg";
 import {
@@ -34,12 +34,9 @@ import {
 import * as path from "path";
 import { promises as fs } from "fs";
 import { err, ok, Result } from "neverthrow";
-import { Logger } from "./log";
-import { extendStackTrace } from "./util";
-import {
-  DrainOuterGeneric,
-  SimplifySingleResult,
-} from "kysely/dist/cjs/util/type-utils";
+import { Logger } from "./log.js";
+import { extendStackTrace } from "./util.js";
+import { DrainOuterGeneric, SimplifySingleResult } from "kysely/dist/cjs/util/type-utils.js";
 
 // BigInts will not exceed Number.MAX_SAFE_INTEGER for our use case.
 // Return as JavaScript's `number` type so it's easier to work with.
@@ -172,9 +169,6 @@ export type FnameRow = {
   fid: Fid;
   type: UserNameType;
   username: string;
-  display_name?: string;
-  bio?: string;
-  pfp?: string;
 };
 
 // MESSAGES ---------------------------------------------------------------------------------------
@@ -386,12 +380,6 @@ export type StorageAllocationRow = {
   payer: Uint8Array;
 };
 
-export interface CastsEmbeddingsRow {
-  hash: Uint8Array;
-  embedding: any;
-  metadata: any;
-}
-
 // ALL TABLES -------------------------------------------------------------------------------------
 export interface Tables {
   usernameProofs: UsernameProofRow;
@@ -406,7 +394,6 @@ export interface Tables {
   verifications: VerificationRow;
   userData: UserDataRow;
   storageAllocations: StorageAllocationRow;
-  casts_embeddings: any;
 }
 
 export const getDbClient = (connectionString?: string) => {
@@ -439,7 +426,7 @@ const createMigrator = async (db: Kysely<any>, log: Logger) => {
 export const migrationStatus = async (
   // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
   db: Kysely<any>,
-  log: Logger
+  log: Logger,
 ): Promise<{ executed: MigrationInfo[]; pending: MigrationInfo[] }> => {
   const migrator = await createMigrator(db, log);
 
@@ -458,10 +445,7 @@ export const migrationStatus = async (
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-export const migrateToLatest = async (
-  db: Kysely<any>,
-  log: Logger
-): Promise<Result<void, unknown>> => {
+export const migrateToLatest = async (db: Kysely<any>, log: Logger): Promise<Result<void, unknown>> => {
   const migrator = await createMigrator(db, log);
 
   const { error, results } = await migrator.migrateToLatest();
@@ -485,10 +469,7 @@ export const migrateToLatest = async (
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-export const migrateOneUp = async (
-  db: Kysely<any>,
-  log: Logger
-): Promise<Result<void, unknown>> => {
+export const migrateOneUp = async (db: Kysely<any>, log: Logger): Promise<Result<void, unknown>> => {
   const migrator = await createMigrator(db, log);
 
   const { error, results } = await migrator.migrateUp();
@@ -515,7 +496,7 @@ export async function execute<DB, UT extends keyof DB, TB extends keyof DB, O>(
     | SelectQueryBuilder<DB, TB, O>
     | InsertQueryBuilder<DB, TB, O>
     | UpdateQueryBuilder<DB, UT, TB, O>
-    | DeleteQueryBuilder<DB, TB, O>
+    | DeleteQueryBuilder<DB, TB, O>,
 ): Promise<DrainOuterGeneric<{ [K in keyof O]: O[K] }>[]> {
   try {
     return await query.execute();
@@ -524,17 +505,12 @@ export async function execute<DB, UT extends keyof DB, TB extends keyof DB, O>(
   }
 }
 
-export async function executeTakeFirst<
-  DB,
-  UT extends keyof DB,
-  TB extends keyof DB,
-  O
->(
+export async function executeTakeFirst<DB, UT extends keyof DB, TB extends keyof DB, O>(
   query:
     | SelectQueryBuilder<DB, TB, O>
     | InsertQueryBuilder<DB, TB, O>
     | UpdateQueryBuilder<DB, UT, TB, O>
-    | DeleteQueryBuilder<DB, TB, O>
+    | DeleteQueryBuilder<DB, TB, O>,
 ): Promise<SimplifySingleResult<O>> {
   try {
     return await query.executeTakeFirst();
@@ -544,21 +520,13 @@ export async function executeTakeFirst<
   }
 }
 
-export async function executeTakeFirstOrThrow<
-  DB,
-  UT extends keyof DB,
-  TB extends keyof DB,
-  O
->(
+export async function executeTakeFirstOrThrow<DB, UT extends keyof DB, TB extends keyof DB, O>(
   query:
     | SelectQueryBuilder<DB, TB, O>
     | InsertQueryBuilder<DB, TB, O>
     | UpdateQueryBuilder<DB, UT, TB, O>
     | DeleteQueryBuilder<DB, TB, O>,
-  errorConstructor?:
-    | NoResultErrorConstructor
-    | ((node: QueryNode) => Error)
-    | undefined
+  errorConstructor?: NoResultErrorConstructor | ((node: QueryNode) => Error) | undefined,
 ): Promise<DrainOuterGeneric<{ [K in keyof O]: O[K] }>> {
   try {
     return await query.executeTakeFirstOrThrow(errorConstructor);
@@ -568,10 +536,7 @@ export async function executeTakeFirstOrThrow<
   }
 }
 
-export async function executeTx<T>(
-  db: DB,
-  callback: (trx: DBTransaction) => Promise<T>
-): Promise<T> {
+export async function executeTx<T>(db: DB, callback: (trx: DBTransaction) => Promise<T>): Promise<T> {
   try {
     return await db.transaction().execute(async (trx) => {
       return await callback(trx);
@@ -588,7 +553,7 @@ export async function stream<DB, UT extends keyof DB, TB extends keyof DB, O>(
     | InsertQueryBuilder<DB, TB, O>
     | UpdateQueryBuilder<DB, UT, TB, O>
     | DeleteQueryBuilder<DB, TB, O>,
-  fn: (row: O) => Promise<void> | void
+  fn: (row: O) => Promise<void> | void,
 ) {
   try {
     for await (const row of query.stream()) {
@@ -596,6 +561,16 @@ export async function stream<DB, UT extends keyof DB, TB extends keyof DB, O>(
     }
   } catch (e) {
     throw extendStackTrace(e, new Error(), query);
+  }
+}
+
+export function getEstimateOfTablesRowCount(db: DB, tablesToMonitor: Array<keyof Tables>) {
+  try {
+    return sql<{ tableName: string; estimate: number }>`SELECT relname AS table_name, reltuples AS estimate
+               FROM pg_class
+               WHERE relname IN (${sql.join(tablesToMonitor)})`.execute(db);
+  } catch (e) {
+    throw extendStackTrace(e, new Error());
   }
 }
 

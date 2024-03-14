@@ -1,24 +1,16 @@
 import { Command } from "@commander-js/extra-typings";
 import * as repl from "repl";
 import { readFileSync } from "fs";
-import { DB, getDbClient, migrateToLatest, migrationStatus } from "./db";
-import {
-  CONCURRENCY,
-  HUB_HOST,
-  HUB_SSL,
-  POSTGRES_URL,
-  REDIS_URL,
-  STATSD_HOST,
-  STATSD_METRICS_PREFIX,
-} from "./env";
-import { Logger, log } from "./log";
-import { getHubClient } from "./hub";
-import { HubReplicator } from "./hubReplicator";
-import { getRedisClient } from "./redis";
-import { terminateProcess, onTerminate } from "./util";
-import { getWebApp } from "./web";
-import { getWorker } from "./worker";
-import { initializeStatsd, statsd } from "./statsd";
+import { DB, getDbClient, migrateToLatest, migrationStatus } from "./db.js";
+import { CONCURRENCY, HUB_HOST, HUB_SSL, POSTGRES_URL, REDIS_URL, STATSD_HOST, STATSD_METRICS_PREFIX } from "./env.js";
+import { Logger, log } from "./log.js";
+import { getHubClient } from "./hub.js";
+import { HubReplicator } from "./hubReplicator.js";
+import { getRedisClient } from "./redis.js";
+import { terminateProcess, onTerminate } from "./util.js";
+import { getWebApp } from "./web.js";
+import { getWorker } from "./worker.js";
+import { initializeStatsd, statsd } from "./statsd.js";
 
 // Perform shutdown cleanup on termination signal
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
@@ -68,15 +60,11 @@ const migrateDb = async (db: DB, log: Logger) => {
 const ensureMigrationsUpToDate = async (db: DB, log: Logger) => {
   const { executed, pending } = await migrationStatus(db, log);
   if (executed.length === 0) {
-    log.info(
-      "Detected no prior migrations have been run. Running migrations now."
-    );
+    log.info("Detected no prior migrations have been run. Running migrations now.");
     await migrateDb(db, log);
   } else if (pending.length > 0) {
     log.error(`Detected ${pending.length} pending migrations.`);
-    log.error(
-      "Please run migrations with `replicator migrate` before starting the replicator."
-    );
+    log.error("Please run migrations with `replicator migrate` before starting the replicator.");
     process.exit(1);
   }
 };
@@ -89,17 +77,16 @@ async function migrate() {
 async function console() {
   await ensureMigrationsUpToDate(db, log);
 
-  const replServer = repl
-    .start({ prompt: "replicator> ", breakEvalOnSigint: true })
-    .on("exit", async () => {
-      await terminateProcess({ success: true, log });
-    });
+  const replServer = repl.start({ prompt: "replicator> ", breakEvalOnSigint: true }).on("exit", async () => {
+    await terminateProcess({ success: true, log });
+  });
 
   // Inject some useful variables into the REPL context
   Object.entries({
     db,
     hub,
     redis,
+    statsd: statsd(),
   }).forEach(([name, value]) => {
     replServer.context[name] = value;
   });
@@ -143,9 +130,7 @@ program.command("start").description("Starts the replicator").action(start);
 
 program
   .command("migrate")
-  .description(
-    "Applies database schema migrations if they are not already are up to date"
-  )
+  .description("Applies database schema migrations if they are not already are up to date")
   .action(migrate);
 
 program.parse(process.argv);

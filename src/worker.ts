@@ -3,21 +3,14 @@ import { EventEmitter } from "events";
 import Redis from "ioredis";
 import path from "path";
 import { Logger } from "./log.js";
-import { WORKER_TYPE } from "./env";
+import { WORKER_TYPE } from "./env.js";
 
-export function getWorker(
-  redis: Redis,
-  log: Logger,
-  { concurrency }: { concurrency: number }
-) {
+export function getWorker(redis: Redis, log: Logger, { concurrency }: { concurrency: number }) {
   const processorFile = path.join(__dirname, "sandboxedJob.js");
 
   // Prevent erroneous warnings about listener usage since
   // increasing concurrency results in more listeners
-  EventEmitter.defaultMaxListeners = Math.max(
-    EventEmitter.defaultMaxListeners,
-    concurrency + 1
-  );
+  EventEmitter.defaultMaxListeners = Math.max(EventEmitter.defaultMaxListeners, concurrency + 1);
 
   const worker = new Worker("default", processorFile, {
     autorun: false, // Don't start yet
@@ -31,7 +24,15 @@ export function getWorker(
   worker.on("failed", (job, err) => {
     if (err.message === "Unexpected exit code: 0 signal: null") return; // Ignore explicit process termination
     log.error(
-      `Job ${job?.name} ${job?.id} failed: ${err.message}: ${err.stack}`
+      {
+        jobName: job?.name,
+        jobId: job?.id,
+        reason: job?.failedReason,
+        errorName: err.name,
+        errorMessage: err.message,
+        errorStack: err.stack,
+      },
+      "Job failed",
     );
   });
   worker.on("error", (err) => {
