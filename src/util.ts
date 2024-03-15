@@ -529,6 +529,7 @@ export async function createEmbeddingWithRetry(
     const embedding = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: cast.text.replace(/(\r\n|\n|\r)/gm, ""),
+      dimensions: 512,
     });
     if (embedding.data && embedding.data.length > 0) {
       return pgvector.toSql(embedding.data[0].embedding);
