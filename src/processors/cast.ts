@@ -208,12 +208,12 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
           trx.insertInto("casts_embeddings").values({
             hash: cast.hash,
             embedding,
+            text: cast.text.replace(/(\r\n|\n|\r)/gm, ""),
             metadata: {
               timestamp: cast.timestamp,
               parentUrl: cast.parentUrl,
               rootParentUrl: cast.rootParentUrl,
               fid: cast.fid,
-              text: cast.text,
             },
           })
         );
