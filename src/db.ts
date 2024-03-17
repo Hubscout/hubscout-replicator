@@ -15,6 +15,7 @@ import {
   QueryNode,
   ColumnType,
   MigrationInfo,
+  sql,
 } from "kysely";
 import pgvector from "pgvector/kysely";
 import Cursor from "pg-cursor";
@@ -438,6 +439,13 @@ const DB = new Kysely<Tables>({
 
 export const getDbClient = () => {
   return DB;
+};
+
+export const addIndexes = async () => {
+  await sql`CREATE INDEX ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
+    DB
+  );
+  await sql`CREATE INDEX ON casts_embeddings USING GIN(fts)`.execute(DB);
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
