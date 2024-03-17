@@ -12,6 +12,7 @@ import {
   CastRow,
   executeTakeFirst,
   executeTakeFirstOrThrow,
+  getDbClient,
 } from "../db.js";
 import {
   bytesToHex,
@@ -20,7 +21,7 @@ import {
 } from "../util.js";
 import pgvector from "pgvector/pg";
 import { AssertionError, HubEventProcessingBlockedError } from "../error.js";
-import { PARTITIONS } from "../env";
+import { PARTITIONS, POSTGRES_URL } from "../env";
 
 const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
   CastAddMessage,
@@ -216,6 +217,11 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
               fid: cast.fid,
             },
           })
+        );
+        const db = getDbClient(POSTGRES_URL);
+        //add index for embedding using hnsw
+        await sql`CREATE INDEX ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
+          db
         );
       } catch (error) {
         console.error("Error adding embedding:", error);
