@@ -218,16 +218,25 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
             },
           })
         );
-        try {
-          const db = getDbClient(process.env.POSTGRES_URL);
-          //add index for embedding using hnsw
-          await sql`CREATE INDEX ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
-            db
-          );
-          await sql`CREATE INDEX ON casts_embeddings USING GIN(fts)`.execute(
-            db
-          );
-        } catch (error) {}
+        await trx.schema
+          .dropIndex("casts_embeddings_embedding")
+          .on("casts_embeddings")
+          .execute();
+        await trx.schema
+          .createIndex("casts_embeddings_embedding")
+          .on("casts_embeddings")
+          .using("hnsw")
+          .expression(sql`embedding vector_l2_ops`)
+          .execute();
+        await trx.schema
+          .dropIndex("casts_embeddings_fts")
+          .on("casts_embeddings");
+        await trx.schema
+          .createIndex("casts_embeddings_fts")
+          .on("casts_embeddings")
+          .using("GIN")
+          .expression(sql`fts`)
+          .execute();
       } catch (error) {
         console.error("Error adding embedding:", error);
       }
