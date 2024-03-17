@@ -412,7 +412,7 @@ export interface Tables {
 
 // Initialize the pool only once
 const pool = new Pool({
-  max: 10,
+  max: 100,
   connectionString: process.env.POSTGRES_URL, // Ensure your connection string is securely managed
 });
 
