@@ -220,12 +220,10 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
         );
         const db = getDbClient(process.env.POSTGRES_URL);
         //add index for embedding using hnsw
-        await sql`CREATE INDEX CONCURRENTLY idx_casts_embeddings_embedding ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
+        await sql`CREATE INDEX ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
           db
         );
-        await sql`CREATE INDEX CONCURRENTLY idx_casts_embeddings_fts ON casts_embeddings USING GIN(fts);`.execute(
-          db
-        );
+        await sql`CREATE INDEX ON casts_embeddings USING GIN(fts)`.execute(db);
       } catch (error) {
         console.error("Error adding embedding:", error);
       }
