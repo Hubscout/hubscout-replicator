@@ -413,7 +413,7 @@ export interface Tables {
 // Initialize the pool only once
 const pool = new Pool({
   max: 10,
-  connectionString: process.env.DATABASE_URL, // Ensure your connection string is securely managed
+  connectionString: POSTGRES_URL, // Ensure your connection string is securely managed
 });
 
 const db = new Kysely<Tables>({
