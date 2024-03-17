@@ -223,6 +223,7 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
         await sql`CREATE INDEX ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
           db
         );
+        await sql`CREATE INDEX ON casts_embeddings USING GIN(fts);`.execute(db);
       } catch (error) {
         console.error("Error adding embedding:", error);
       }
