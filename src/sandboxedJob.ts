@@ -12,7 +12,7 @@ loadJobs();
 
 const SHUTDOWN_CHECK_INTERVAL_MS = 2_000;
 
-const db = getDbClient(POSTGRES_URL);
+const db = getDbClient();
 onTerminate(async () => {
   log.debug("Disconnecting from database");
   await db.destroy();

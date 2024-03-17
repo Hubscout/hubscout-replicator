@@ -40,6 +40,7 @@ import {
   DrainOuterGeneric,
   SimplifySingleResult,
 } from "kysely/dist/cjs/util/type-utils";
+import { POSTGRES_URL } from "env";
 
 // BigInts will not exceed Number.MAX_SAFE_INTEGER for our use case.
 // Return as JavaScript's `number` type so it's easier to work with.
@@ -409,17 +410,22 @@ export interface Tables {
   casts_embeddings: any;
 }
 
-export const getDbClient = (connectionString?: string) => {
-  return new Kysely<Tables>({
-    dialect: new PostgresDialect({
-      pool: new Pool({
-        max: 10,
-        connectionString,
-      }),
-      cursor: Cursor,
-    }),
-    plugins: [new CamelCasePlugin()],
-  });
+// Initialize the pool only once
+const pool = new Pool({
+  max: 10,
+  connectionString: process.env.DATABASE_URL, // Ensure your connection string is securely managed
+});
+
+const db = new Kysely<Tables>({
+  dialect: new PostgresDialect({
+    pool,
+    cursor: Cursor,
+  }),
+  plugins: [new CamelCasePlugin()],
+});
+
+export const getDbClient = () => {
+  return db;
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
