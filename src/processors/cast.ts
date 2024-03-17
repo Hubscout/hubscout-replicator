@@ -218,21 +218,16 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
             },
           })
         );
+        const timestamp = new Date().getTime(); // Get current timestamp
+
         await trx.schema
-          .dropIndex("casts_embeddings_embedding")
-          .on("casts_embeddings")
-          .execute();
-        await trx.schema
-          .createIndex("casts_embeddings_embedding")
+          .createIndex(`casts_embeddings_embedding_${timestamp}`) // Use the timestamp in the index name
           .on("casts_embeddings")
           .using("hnsw")
           .expression(sql`embedding vector_l2_ops`)
           .execute();
         await trx.schema
-          .dropIndex("casts_embeddings_fts")
-          .on("casts_embeddings");
-        await trx.schema
-          .createIndex("casts_embeddings_fts")
+          .createIndex(`casts_embeddings_fts_${timestamp}`) // Use the timestamp in the index name
           .on("casts_embeddings")
           .using("GIN")
           .expression(sql`fts`)
