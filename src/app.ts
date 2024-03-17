@@ -44,7 +44,7 @@ if (STATSD_HOST) {
   initializeStatsd(STATSD_HOST, STATSD_METRICS_PREFIX);
 }
 
-const db = getDbClient();
+const db = getDbClient(process.env.POSTGRES_URL);
 onTerminate(async () => {
   log.debug("Disconnecting from database");
   await db.destroy();

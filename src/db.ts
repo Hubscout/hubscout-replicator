@@ -410,18 +410,18 @@ export interface Tables {
   casts_embeddings: any;
 }
 
-// export const getDbClient = (connectionString?: string) => {
-//   return new Kysely<Tables>({
-//     dialect: new PostgresDialect({
-//       pool: new Pool({
-//         max: 10,
-//         connectionString,
-//       }),
-//       cursor: Cursor,
-//     }),
-//     plugins: [new CamelCasePlugin()],
-//   });
-// };
+export const getDbClient = (connectionString?: string) => {
+  return new Kysely<Tables>({
+    dialect: new PostgresDialect({
+      pool: new Pool({
+        max: 10,
+        connectionString,
+      }),
+      cursor: Cursor,
+    }),
+    plugins: [new CamelCasePlugin()],
+  });
+};
 
 // Initialize the pool only once
 const pool = new Pool({
@@ -437,9 +437,9 @@ const DB = new Kysely<Tables>({
   plugins: [new CamelCasePlugin()],
 });
 
-export const getDbClient = () => {
-  return DB;
-};
+// export const getDbClient = () => {
+//   return DB;
+// };
 
 export const addIndexes = async () => {
   await sql`CREATE INDEX ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
