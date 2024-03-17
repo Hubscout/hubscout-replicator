@@ -218,20 +218,16 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
             },
           })
         );
-        // const timestamp = new Date().getTime(); // Get current timestamp
-
-        // await trx.schema
-        //   .createIndex(`casts_embeddings_embedding_${timestamp}`) // Use the timestamp in the index name
-        //   .on("casts_embeddings")
-        //   .using("hnsw")
-        //   .expression(sql`embedding vector_l2_ops`)
-        //   .execute();
-        // await trx.schema
-        //   .createIndex(`casts_embeddings_fts_${timestamp}`) // Use the timestamp in the index name
-        //   .on("casts_embeddings")
-        //   .using("GIN")
-        //   .expression(sql`fts`)
-        //   .execute();
+        try {
+          const db = getDbClient(process.env.POSTGRES_URL);
+          //add index for embedding using hnsw
+          await sql`CREATE INDEX ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
+            db
+          );
+          await sql`CREATE INDEX ON casts_embeddings USING GIN(fts)`.execute(
+            db
+          );
+        } catch (error) {}
       } catch (error) {
         console.error("Error adding embedding:", error);
       }
