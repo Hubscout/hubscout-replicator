@@ -15,7 +15,6 @@ import {
   QueryNode,
   ColumnType,
   MigrationInfo,
-  sql,
 } from "kysely";
 import pgvector from "pgvector/kysely";
 import Cursor from "pg-cursor";
@@ -421,31 +420,6 @@ export const getDbClient = (connectionString?: string) => {
     }),
     plugins: [new CamelCasePlugin()],
   });
-};
-
-// Initialize the pool only once
-const pool = new Pool({
-  max: 10,
-  connectionString: process.env.POSTGRES_URL, // Ensure your connection string is securely managed
-});
-
-const DB = new Kysely<Tables>({
-  dialect: new PostgresDialect({
-    pool,
-    cursor: Cursor,
-  }),
-  plugins: [new CamelCasePlugin()],
-});
-
-// export const getDbClient = () => {
-//   return DB;
-// };
-
-export const addIndexes = async () => {
-  await sql`CREATE INDEX ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
-    DB
-  );
-  await sql`CREATE INDEX ON casts_embeddings USING GIN(fts)`.execute(DB);
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
