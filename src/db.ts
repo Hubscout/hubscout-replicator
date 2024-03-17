@@ -409,26 +409,26 @@ export interface Tables {
   casts_embeddings: any;
 }
 
-export const getDbClient = (connectionString?: string) => {
-  return new Kysely<Tables>({
-    dialect: new PostgresDialect({
-      pool: new Pool({
-        max: 10,
-        connectionString,
-      }),
-      cursor: Cursor,
-    }),
-    plugins: [new CamelCasePlugin()],
-  });
-};
+// export const getDbClient = (connectionString?: string) => {
+//   return new Kysely<Tables>({
+//     dialect: new PostgresDialect({
+//       pool: new Pool({
+//         max: 10,
+//         connectionString,
+//       }),
+//       cursor: Cursor,
+//     }),
+//     plugins: [new CamelCasePlugin()],
+//   });
+// };
 
 // Initialize the pool only once
 const pool = new Pool({
-  max: 100,
+  max: 10,
   connectionString: process.env.POSTGRES_URL, // Ensure your connection string is securely managed
 });
 
-const castDB = new Kysely<Tables>({
+const DB = new Kysely<Tables>({
   dialect: new PostgresDialect({
     pool,
     cursor: Cursor,
@@ -436,8 +436,8 @@ const castDB = new Kysely<Tables>({
   plugins: [new CamelCasePlugin()],
 });
 
-export const getCastDB = () => {
-  return castDB;
+export const getDbClient = () => {
+  return DB;
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code

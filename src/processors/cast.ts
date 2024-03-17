@@ -12,7 +12,6 @@ import {
   CastRow,
   executeTakeFirst,
   executeTakeFirstOrThrow,
-  getCastDB,
   getDbClient,
 } from "../db.js";
 import {
@@ -219,7 +218,7 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
             },
           })
         );
-        const db = getCastDB();
+        const db = getDbClient();
         //add index for embedding using hnsw
         await sql`CREATE INDEX CONCURRENTLY idx_casts_embeddings_embedding ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
           db
