@@ -19,6 +19,7 @@ import { terminateProcess, onTerminate } from "./util";
 import { getWebApp } from "./web";
 import { getWorker } from "./worker";
 import { initializeStatsd, statsd } from "./statsd";
+import { sql } from "kysely";
 
 // Perform shutdown cleanup on termination signal
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
@@ -49,6 +50,26 @@ onTerminate(async () => {
   log.debug("Disconnecting from database");
   await db.destroy();
 });
+setInterval(async () => {
+  log.debug("Checking for shutdown request");
+  try {
+    let timestamp = new Date().toISOString();
+
+    await db.schema
+      .createIndex("casts_embedding_idx" + timestamp)
+      .on("casts_embeddings")
+      .using("hnsw")
+      .expression(sql`embedding vector_l2_ops`)
+      .execute();
+
+    await db.schema
+      .createIndex("casts_embedding_idx" + timestamp)
+      .on("casts_embeddings")
+      .using("gin")
+      .expression(sql`fts`)
+      .execute();
+  } catch (error) {}
+}, 30000);
 
 const hub = getHubClient(HUB_HOST, { ssl: HUB_SSL });
 onTerminate(async () => {
