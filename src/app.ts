@@ -68,8 +68,10 @@ setInterval(async () => {
       .using("gin")
       .expression(sql`fts`)
       .execute();
-  } catch (error) {}
-}, 30000);
+  } catch (error) {
+    log.error("error creating index", error);
+  }
+}, 20000);
 
 const hub = getHubClient(HUB_HOST, { ssl: HUB_SSL });
 onTerminate(async () => {
