@@ -218,16 +218,16 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
             },
           })
         );
-        // try {
-        //   const db = getDbClient(process.env.POSTGRES_URL);
-        //   //add index for embedding using hnsw
-        //   await sql`CREATE INDEX ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
-        //     db
-        //   );
-        //   await sql`CREATE INDEX ON casts_embeddings USING GIN(fts)`.execute(
-        //     db
-        //   );
-        // } catch (error) {}
+        try {
+          const db = getDbClient(process.env.POSTGRES_URL);
+          //add index for embedding using hnsw
+          await sql`CREATE INDEX ON casts_embeddings USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 64)`.execute(
+            db
+          );
+          await sql`CREATE INDEX ON casts_embeddings USING GIN(fts)`.execute(
+            db
+          );
+        } catch (error) {}
       } catch (error) {
         console.error("Error adding embedding:", error);
       }
