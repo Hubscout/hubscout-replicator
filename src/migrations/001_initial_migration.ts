@@ -70,10 +70,10 @@ export const up = async (db: Kysely<any>) => {
 
   // ULID generation function for creating unique IDs without centralized coordination.
   // Avoids limitations of a monotonic (auto-incrementing) ID.
-  // await sql`CREATE FUNCTION generate_ulid() RETURNS uuid
-  //   LANGUAGE sql STRICT PARALLEL SAFE
-  //   RETURN ((lpad(to_hex((floor((EXTRACT(epoch FROM clock_timestamp()) * (1000)::numeric)))::bigint), 12, '0'::text) || encode(gen_random_bytes(10), 'hex'::text)))::uuid;
-  // `.execute(db);
+  await sql`CREATE FUNCTION generate_ulid() RETURNS uuid
+    LANGUAGE sql STRICT PARALLEL SAFE
+    RETURN ((lpad(to_hex((floor((EXTRACT(epoch FROM clock_timestamp()) * (1000)::numeric)))::bigint), 12, '0'::text) || encode(gen_random_bytes(10), 'hex'::text)))::uuid;
+  `.execute(db);
 
   // CHAIN EVENTS --------------------------------------------------------------------------------
   await db.schema
@@ -449,6 +449,9 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("embedding", "vector(512)" as any)
     .addColumn("metadata", "jsonb")
     .addColumn("text", "text")
+    .addColumn("fts", "tsvector" as any, (col) =>
+      col.generatedAlwaysAs(sql`to_tsvector('simple', text)`).stored()
+    )
     .addUniqueConstraint("casts_embeddings_hash_unique", ["hash"])
     .execute();
 
