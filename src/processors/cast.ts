@@ -192,15 +192,6 @@ const { processAdd, processRemove } = buildAddRemoveMessageProcessor<
     );
   },
   async onAdd({ data: cast, isCreate, skipSideEffects, trx }) {
-    // Update any other derived data
-    // await db.schema
-    //   .createTable("casts_embeddings")
-    //   .addColumn("hash", "bytea", (cb) => cb.primaryKey())
-    //   .addColumn("embedding", "vector(3)")
-    //   .addColumn("metadata", "jsonb")
-    //   .addUniqueConstraint("casts_embeddings_hash_unique", ["hash"])
-    //   .execute();
-
     if (cast.text) {
       try {
         const embedding = await createEmbeddingWithRetry(cast, 3, 3000);
